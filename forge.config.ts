@@ -10,8 +10,14 @@ import { FuseV1Options, FuseVersion } from '@electron/fuses';
 const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
+    extraResource: [
+      'node_modules/better-sqlite3'
+    ]
   },
-  rebuildConfig: {},
+  rebuildConfig: {
+    // 필요한 모듈을 여기에 추가
+    onlyModules: ['better-sqlite3'],
+  },
   makers: [new MakerSquirrel({}), new MakerZIP({}, ['darwin']), new MakerRpm({}), new MakerDeb({})],
   plugins: [
     new VitePlugin({

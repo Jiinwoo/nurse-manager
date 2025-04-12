@@ -2,7 +2,7 @@
 
 ## 1단계: 프로젝트 설정 및 기본 구조 구축
 - [x] Electron Forge 프로젝트 구조 설정
-- [ ] React/Vue 등 UI 프레임워크 설정
+- [x] React/Vue 등 UI 프레임워크 설정
 - [ ] 데이터베이스 연결 설정 (SQLite 또는 IndexedDB)
 - [ ] 기본 UI 레이아웃 설계
 - [ ] 라우팅 시스템 구현

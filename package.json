@@ -9,7 +9,8 @@
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",
-    "lint": "eslint --ext .ts,.tsx ."
+    "lint": "eslint --ext .ts,.tsx .",
+    "rebuild": "electron-rebuild -f -w better-sqlite3"
   },
   "keywords": [],
   "author": {
@@ -27,11 +28,14 @@
     "@electron-forge/plugin-fuses": "^7.8.0",
     "@electron-forge/plugin-vite": "^7.8.0",
     "@electron/fuses": "^1.8.0",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/electron-squirrel-startup": "^1.0.2",
     "@types/react": "^19.1.1",
     "@types/react-dom": "^19.1.2",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
     "electron": "35.1.5",
+    "electron-rebuild": "^3.2.9",
     "eslint": "^8.57.1",
     "eslint-plugin-import": "^2.31.0",
     "ts-node": "^10.9.2",
@@ -39,6 +43,7 @@
     "vite": "^5.4.18"
   },
   "dependencies": {
+    "better-sqlite3": "^11.9.1",
     "electron-squirrel-startup": "^1.0.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
