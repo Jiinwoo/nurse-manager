@@ -43,9 +43,12 @@
     "vite": "^5.4.18"
   },
   "dependencies": {
+    "@types/react-router-dom": "^5.3.3",
     "better-sqlite3": "^11.9.1",
+    "bootstrap": "^5.3.5",
     "electron-squirrel-startup": "^1.0.1",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.5.0"
   }
 }

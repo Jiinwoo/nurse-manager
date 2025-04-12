@@ -50,7 +50,7 @@ const createWindow = () => {
 async function setupIpcHandlers() {
   try {
     // 데이터베이스 초기화 및 작업 객체 가져오기
-    const { nurseOperations, shiftOperations } = await initDb();
+    const { nurseOperations, shiftOperations, teamOperations } = await initDb();
     dbInitialized = true;
     
     // Nurse operations
@@ -98,6 +98,93 @@ async function setupIpcHandlers() {
         return { success: true, data: result };
       } catch (error) {
         console.error(`Error deleting nurse ${id}:`, error);
+        return { success: false, error: error.message };
+      }
+    });
+
+    ipcMain.handle('nurse:removeFromTeam', async (_, id) => {
+      try {
+        const result = nurseOperations.removeFromTeam(id);
+        return { success: true, data: result };
+      } catch (error) {
+        console.error(`Error removing nurse ${id} from team:`, error);
+        return { success: false, error: error.message };
+      }
+    });
+
+    ipcMain.handle('nurse:assignToTeam', async (_, id, teamId) => {
+      try {
+        const result = nurseOperations.assignToTeam(id, teamId);
+        return { success: true, data: result };
+      } catch (error) {
+        console.error(`Error assigning nurse ${id} to team ${teamId}:`, error);
+        return { success: false, error: error.message };
+      }
+    });
+
+    // Team operations
+    ipcMain.handle('team:getAll', async () => {
+      try {
+        return { success: true, data: teamOperations.getAll() };
+      } catch (error) {
+        console.error('Error getting teams:', error);
+        return { success: false, error: error.message };
+      }
+    });
+
+    ipcMain.handle('team:getById', async (_, id) => {
+      try {
+        return { success: true, data: teamOperations.getById(id) };
+      } catch (error) {
+        console.error(`Error getting team ${id}:`, error);
+        return { success: false, error: error.message };
+      }
+    });
+
+    ipcMain.handle('team:getNursesByTeamId', async (_, teamId) => {
+      try {
+        return { success: true, data: teamOperations.getNursesByTeamId(teamId) };
+      } catch (error) {
+        console.error(`Error getting nurses for team ${teamId}:`, error);
+        return { success: false, error: error.message };
+      }
+    });
+
+    ipcMain.handle('team:getUnassignedNurses', async () => {
+      try {
+        return { success: true, data: teamOperations.getUnassignedNurses() };
+      } catch (error) {
+        console.error('Error getting unassigned nurses:', error);
+        return { success: false, error: error.message };
+      }
+    });
+
+    ipcMain.handle('team:create', async (_, teamData) => {
+      try {
+        const result = teamOperations.create(teamData);
+        return { success: true, data: result };
+      } catch (error) {
+        console.error('Error creating team:', error);
+        return { success: false, error: error.message };
+      }
+    });
+
+    ipcMain.handle('team:update', async (_, id, teamData) => {
+      try {
+        const result = teamOperations.update(id, teamData);
+        return { success: true, data: result };
+      } catch (error) {
+        console.error(`Error updating team ${id}:`, error);
+        return { success: false, error: error.message };
+      }
+    });
+
+    ipcMain.handle('team:delete', async (_, id) => {
+      try {
+        const result = teamOperations.delete(id);
+        return { success: true, data: result };
+      } catch (error) {
+        console.error(`Error deleting team ${id}:`, error);
         return { success: false, error: error.message };
       }
     });
@@ -181,6 +268,17 @@ function setupErrorHandlers() {
   ipcMain.handle('nurse:create', async () => errorResponse);
   ipcMain.handle('nurse:update', async () => errorResponse);
   ipcMain.handle('nurse:delete', async () => errorResponse);
+  ipcMain.handle('nurse:removeFromTeam', async () => errorResponse);
+  ipcMain.handle('nurse:assignToTeam', async () => errorResponse);
+  
+  // Team operations with error responses
+  ipcMain.handle('team:getAll', async () => errorResponse);
+  ipcMain.handle('team:getById', async () => errorResponse);
+  ipcMain.handle('team:getNursesByTeamId', async () => errorResponse);
+  ipcMain.handle('team:getUnassignedNurses', async () => errorResponse);
+  ipcMain.handle('team:create', async () => errorResponse);
+  ipcMain.handle('team:update', async () => errorResponse);
+  ipcMain.handle('team:delete', async () => errorResponse);
   
   // Shift operations with error responses
   ipcMain.handle('shift:getAll', async () => errorResponse);

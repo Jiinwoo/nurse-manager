@@ -13,6 +13,8 @@ contextBridge.exposeInMainWorld('api', {
     create: (nurseData: any) => ipcRenderer.invoke('nurse:create', nurseData),
     update: (id: number, nurseData: any) => ipcRenderer.invoke('nurse:update', id, nurseData),
     delete: (id: number) => ipcRenderer.invoke('nurse:delete', id),
+    removeFromTeam: (id: number) => ipcRenderer.invoke('nurse:removeFromTeam', id),
+    assignToTeam: (id: number, teamId: number) => ipcRenderer.invoke('nurse:assignToTeam', id, teamId),
   },
   
   // Shift operations
@@ -23,5 +25,16 @@ contextBridge.exposeInMainWorld('api', {
     create: (shiftData: any) => ipcRenderer.invoke('shift:create', shiftData),
     update: (id: number, shiftData: any) => ipcRenderer.invoke('shift:update', id, shiftData),
     delete: (id: number) => ipcRenderer.invoke('shift:delete', id),
+  },
+  
+  // Team operations
+  teams: {
+    getAll: () => ipcRenderer.invoke('team:getAll'),
+    getById: (id: number) => ipcRenderer.invoke('team:getById', id),
+    getNursesByTeamId: (teamId: number) => ipcRenderer.invoke('team:getNursesByTeamId', teamId),
+    getUnassignedNurses: () => ipcRenderer.invoke('team:getUnassignedNurses'),
+    create: (teamData: any) => ipcRenderer.invoke('team:create', teamData),
+    update: (id: number, teamData: any) => ipcRenderer.invoke('team:update', id, teamData),
+    delete: (id: number) => ipcRenderer.invoke('team:delete', id),
   }
 });

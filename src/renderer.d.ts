@@ -1,10 +1,18 @@
 export interface Nurse {
   id?: number;
   name: string;
-  employee_id: string;
-  department?: string;
-  position?: string;
-  contact?: string;
+  years_experience: number;
+  available_shift_types: string[];
+  team_id?: number | null;
+  team_name?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface Team {
+  id?: number;
+  name: string;
+  description?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -27,14 +35,6 @@ export interface ApiResponse<T> {
   error?: string;
 }
 
-interface NurseApi {
-  getAll: () => Promise<ApiResponse<Nurse[]>>;
-  getById: (id: number) => Promise<ApiResponse<Nurse>>;
-  create: (nurseData: Omit<Nurse, 'id' | 'created_at' | 'updated_at'>) => Promise<ApiResponse<any>>;
-  update: (id: number, nurseData: Partial<Omit<Nurse, 'id' | 'created_at' | 'updated_at'>>) => Promise<ApiResponse<any>>;
-  delete: (id: number) => Promise<ApiResponse<any>>;
-}
-
 interface ShiftApi {
   getAll: () => Promise<ApiResponse<Shift[]>>;
   getById: (id: number) => Promise<ApiResponse<Shift>>;
@@ -44,9 +44,30 @@ interface ShiftApi {
   delete: (id: number) => Promise<ApiResponse<any>>;
 }
 
+interface TeamApi {
+  getAll: () => Promise<ApiResponse<Team[]>>;
+  getById: (id: number) => Promise<ApiResponse<Team>>;
+  getNursesByTeamId: (teamId: number) => Promise<ApiResponse<Nurse[]>>;
+  getUnassignedNurses: () => Promise<ApiResponse<Nurse[]>>;
+  create: (teamData: Omit<Team, 'id' | 'created_at' | 'updated_at'>) => Promise<ApiResponse<any>>;
+  update: (id: number, teamData: Partial<Omit<Team, 'id' | 'created_at' | 'updated_at'>>) => Promise<ApiResponse<any>>;
+  delete: (id: number) => Promise<ApiResponse<any>>;
+}
+
+interface NurseApi {
+  getAll: () => Promise<ApiResponse<Nurse[]>>;
+  getById: (id: number) => Promise<ApiResponse<Nurse>>;
+  create: (nurseData: Omit<Nurse, 'id' | 'created_at' | 'updated_at' | 'team_name'>) => Promise<ApiResponse<any>>;
+  update: (id: number, nurseData: Partial<Omit<Nurse, 'id' | 'created_at' | 'updated_at' | 'team_name'>>) => Promise<ApiResponse<any>>;
+  delete: (id: number) => Promise<ApiResponse<any>>;
+  removeFromTeam: (id: number) => Promise<ApiResponse<any>>;
+  assignToTeam: (id: number, teamId: number) => Promise<ApiResponse<any>>;
+}
+
 interface ElectronApi {
   nurses: NurseApi;
   shifts: ShiftApi;
+  teams: TeamApi;
 }
 
 declare global {
