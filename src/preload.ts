@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('api', {
     create: (nurseData: any) => ipcRenderer.invoke('nurse:create', nurseData),
     update: (id: number, nurseData: any) => ipcRenderer.invoke('nurse:update', id, nurseData),
     delete: (id: number) => ipcRenderer.invoke('nurse:delete', id),
+    deleteAll: () => ipcRenderer.invoke('nurse:deleteAll'),
     removeFromTeam: (id: number) => ipcRenderer.invoke('nurse:removeFromTeam', id),
     assignToTeam: (id: number, teamId: number) => ipcRenderer.invoke('nurse:assignToTeam', id, teamId),
   },

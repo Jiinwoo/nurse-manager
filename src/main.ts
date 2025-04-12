@@ -102,6 +102,16 @@ async function setupIpcHandlers() {
       }
     });
 
+    ipcMain.handle('nurse:deleteAll', async () => {
+      try {
+        const result = nurseOperations.deleteAll();
+        return { success: true, data: result };
+      } catch (error) {
+        console.error('Error deleting all nurses:', error);
+        return { success: false, error: error.message };
+      }
+    });
+
     ipcMain.handle('nurse:removeFromTeam', async (_, id) => {
       try {
         const result = nurseOperations.removeFromTeam(id);
@@ -268,6 +278,7 @@ function setupErrorHandlers() {
   ipcMain.handle('nurse:create', async () => errorResponse);
   ipcMain.handle('nurse:update', async () => errorResponse);
   ipcMain.handle('nurse:delete', async () => errorResponse);
+  ipcMain.handle('nurse:deleteAll', async () => errorResponse);
   ipcMain.handle('nurse:removeFromTeam', async () => errorResponse);
   ipcMain.handle('nurse:assignToTeam', async () => errorResponse);
   

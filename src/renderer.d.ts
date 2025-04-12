@@ -60,6 +60,7 @@ interface NurseApi {
   create: (nurseData: Omit<Nurse, 'id' | 'created_at' | 'updated_at' | 'team_name'>) => Promise<ApiResponse<any>>;
   update: (id: number, nurseData: Partial<Omit<Nurse, 'id' | 'created_at' | 'updated_at' | 'team_name'>>) => Promise<ApiResponse<any>>;
   delete: (id: number) => Promise<ApiResponse<any>>;
+  deleteAll: () => Promise<ApiResponse<any>>;
   removeFromTeam: (id: number) => Promise<ApiResponse<any>>;
   assignToTeam: (id: number, teamId: number) => Promise<ApiResponse<any>>;
 }

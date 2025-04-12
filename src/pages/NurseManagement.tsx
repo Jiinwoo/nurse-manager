@@ -27,6 +27,10 @@ const NurseManagement: React.FC = () => {
   });
   const [editingId, setEditingId] = useState<number | null>(null);
   const [isImporting, setIsImporting] = useState(false);
+  const [sortConfig, setSortConfig] = useState<{key: keyof Nurse | 'team_name', direction: 'asc' | 'desc'}>({
+    key: 'years_experience',
+    direction: 'desc'
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Available shift types constants
@@ -309,6 +313,81 @@ const NurseManagement: React.FC = () => {
     }
   };
 
+  // Delete all nurses
+  const handleDeleteAll = async () => {
+    if (!window.confirm('정말로 모든 간호사를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
+      return;
+    }
+    
+    // Double confirm for critical action
+    if (!window.confirm('이 작업은 모든 간호사 데이터를 영구적으로 삭제합니다. 계속하시겠습니까?')) {
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await window.api.nurses.deleteAll();
+      if (response.success) {
+        await loadData();
+        setError(null);
+      } else {
+        setError(response.error || '간호사 일괄 삭제 중 오류가 발생했습니다.');
+      }
+    } catch (err) {
+      setError('간호사 일괄 삭제 중 예외가 발생했습니다.');
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Sort nurses
+  const requestSort = (key: keyof Nurse | 'team_name') => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  // Get sorted nurses
+  const getSortedNurses = () => {
+    const sortableNurses = [...nurses];
+    if (sortConfig.key) {
+      sortableNurses.sort((a, b) => {
+        if (a[sortConfig.key] === null) return 1;
+        if (b[sortConfig.key] === null) return -1;
+        
+        if (sortConfig.key === 'team_name') {
+          // Special handling for team_name which might be null
+          const aValue = a.team_name || '';
+          const bValue = b.team_name || '';
+          return sortConfig.direction === 'asc' 
+            ? aValue.localeCompare(bValue)
+            : bValue.localeCompare(aValue);
+        }
+        
+        if (typeof a[sortConfig.key] === 'string') {
+          return sortConfig.direction === 'asc'
+            ? (a[sortConfig.key] as string).localeCompare(b[sortConfig.key] as string)
+            : (b[sortConfig.key] as string).localeCompare(a[sortConfig.key] as string);
+        }
+        
+        // For numbers or other types
+        return sortConfig.direction === 'asc'
+          ? (a[sortConfig.key] as number) - (b[sortConfig.key] as number)
+          : (b[sortConfig.key] as number) - (a[sortConfig.key] as number);
+      });
+    }
+    return sortableNurses;
+  };
+
+  // Get sort indicator
+  const getSortDirectionIndicator = (key: keyof Nurse | 'team_name') => {
+    if (sortConfig.key !== key) return null;
+    return sortConfig.direction === 'asc' ? '↑' : '↓';
+  };
+
   // Edit a nurse
   const handleEdit = (nurse: Nurse) => {
     setEditingId(nurse.id || null);
@@ -484,8 +563,17 @@ const NurseManagement: React.FC = () => {
         
         <div className="col-md-8">
           <div className="card">
-            <div className="card-header">
-              간호사 목록
+            <div className="card-header d-flex justify-content-between align-items-center">
+              <span>간호사 목록</span>
+              {nurses.length > 0 && (
+                <button
+                  className="btn btn-sm btn-danger"
+                  onClick={handleDeleteAll}
+                  disabled={isLoading}
+                >
+                  전체 삭제
+                </button>
+              )}
             </div>
             <div className="card-body">
               {isLoading ? (
@@ -499,15 +587,23 @@ const NurseManagement: React.FC = () => {
                   <table className="table table-striped">
                     <thead>
                       <tr>
-                        <th>이름</th>
-                        <th>경력</th>
-                        <th>근무 가능 시간대</th>
-                        <th>팀</th>
+                        <th onClick={() => requestSort('name')} style={{ cursor: 'pointer' }}>
+                          이름 {getSortDirectionIndicator('name')}
+                        </th>
+                        <th onClick={() => requestSort('years_experience')} style={{ cursor: 'pointer' }}>
+                          경력 {getSortDirectionIndicator('years_experience')}
+                        </th>
+                        <th>
+                          근무 가능 시간대
+                        </th>
+                        <th onClick={() => requestSort('team_name')} style={{ cursor: 'pointer' }}>
+                          팀 {getSortDirectionIndicator('team_name')}
+                        </th>
                         <th>동작</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {nurses.map(nurse => (
+                      {getSortedNurses().map(nurse => (
                         <tr key={nurse.id}>
                           <td>{nurse.name}</td>
                           <td>{nurse.years_experience}년</td>

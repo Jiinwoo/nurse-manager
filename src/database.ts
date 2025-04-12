@@ -104,7 +104,7 @@ const createNurseOperations = (db: any) => ({
       SELECT n.*, t.name as team_name 
       FROM nurses n 
       LEFT JOIN teams t ON n.team_id = t.id 
-      ORDER BY n.name
+      ORDER BY n.years_experience DESC, n.name ASC
     `);
     const nurses = stmt.all();
     
@@ -195,6 +195,12 @@ const createNurseOperations = (db: any) => ({
   delete: (id: number) => {
     const stmt = db.prepare('DELETE FROM nurses WHERE id = ?');
     return stmt.run(id);
+  },
+
+  // Delete all nurses
+  deleteAll: () => {
+    const stmt = db.prepare('DELETE FROM nurses');
+    return stmt.run();
   }
 });
 
