@@ -1,11 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Nurse, Team } from '../renderer.d';
+import Papa from 'papaparse';
+
+interface CsvNurseData {
+  이름?: string;
+  연차?: string;
+  팀?: string;
+  '선호 근무'?: string;
+  // 또는 순서대로 파싱할 경우를 위한 필드
+  [key: number]: string;
+}
 
 const NurseManagement: React.FC = () => {
   const [nurses, setNurses] = useState<Nurse[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [csvLoading, setCsvLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [csvError, setCsvError] = useState<string | null>(null);
+  const [csvSuccess, setCsvSuccess] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<Nurse>>({
     name: '',
     years_experience: 0,
@@ -13,7 +26,9 @@ const NurseManagement: React.FC = () => {
     team_id: null
   });
   const [editingId, setEditingId] = useState<number | null>(null);
-
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   // Available shift types constants
   const SHIFT_TYPES = ['Day', 'Evening', 'Night'];
 
@@ -87,6 +102,24 @@ const NurseManagement: React.FC = () => {
     });
   };
 
+  // Convert shift types from CSV format (D, E, N) to DB format (Day, Evening, Night)
+  const convertShiftTypes = (shiftTypesStr: string): string[] => {
+    // Expected format: "(D, E, N)" or similar
+    const shiftTypesMatch = shiftTypesStr.match(/\(([^)]+)\)/);
+    if (!shiftTypesMatch) return [];
+    
+    const csvShiftTypes = shiftTypesMatch[1].split(',').map(type => type.trim());
+    const dbShiftTypes: string[] = [];
+    
+    for (const type of csvShiftTypes) {
+      if (type === 'D') dbShiftTypes.push('Day');
+      else if (type === 'E') dbShiftTypes.push('Evening');
+      else if (type === 'N') dbShiftTypes.push('Night');
+    }
+    
+    return dbShiftTypes;
+  };
+
   // Handle form submission for create/update
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,6 +165,125 @@ const NurseManagement: React.FC = () => {
       console.error(err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Find team ID by team code
+  const findTeamIdByCode = (teamCode: string): number | null => {
+    if (!teamCode || teamCode === '-') return null;
+    
+    const team = teams.find(t => t.name === `${teamCode}`);
+    return team?.id || null;
+  };
+  
+  // Handle CSV file selection and upload
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      if (file.type !== 'text/csv' && !file.name.endsWith('.csv')) {
+        setCsvError('CSV 파일만 업로드 가능합니다.');
+        return;
+      }
+      
+      setCsvLoading(true);
+      setIsImporting(true);
+      setCsvError(null);
+      
+      Papa.parse<CsvNurseData>(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: async (results) => {
+          try {
+            if (results.errors.length > 0) {
+              setCsvError(`CSV 파싱 오류: ${results.errors[0].message}`);
+              setCsvLoading(false);
+              setIsImporting(false);
+              return;
+            }
+            
+            let successCount = 0;
+            
+            // Process each row
+            for (const row of results.data) {
+              try {
+                // Extract data from the row
+                // Handle both named columns and positional data
+                const name = row['이름'] || row[0];
+                const yearsExperienceStr = row['연차'] || row[1];
+                const teamCode = row['팀'] || row[2];
+                const shiftTypesStr = row['선호 근무'] || row[3];
+                
+                if (!name || !yearsExperienceStr || !shiftTypesStr) {
+                  console.warn('Skipping row with missing data:', row);
+                  continue;
+                }
+                
+                // Parse years of experience
+                const years_experience = parseInt(yearsExperienceStr, 10);
+                if (isNaN(years_experience)) {
+                  console.warn('Skipping row with invalid years of experience:', row);
+                  continue;
+                }
+                
+                // Convert shift types
+                const available_shift_types = convertShiftTypes(shiftTypesStr);
+                if (available_shift_types.length === 0) {
+                  console.warn('Skipping row with invalid shift types:', row);
+                  continue;
+                }
+                
+                // Find team ID
+                const team_id = findTeamIdByCode(teamCode);
+                
+                // Create nurse object
+                const nurseData = {
+                  name,
+                  years_experience,
+                  available_shift_types,
+                  team_id
+                };
+                
+                // Create nurse in database
+                const response = await window.api.nurses.create(nurseData);
+                
+                if (response.success) {
+                  successCount++;
+                } else {
+                  console.error('Error creating nurse:', response.error);
+                }
+              } catch (rowError) {
+                console.error('Error processing CSV row:', row, rowError);
+              }
+            }
+            
+            if (successCount > 0) {
+              setCsvSuccess(`${successCount}명의 간호사가 성공적으로 데이터베이스에 추가되었습니다.`);
+              await loadData(); // Reload the nurse list
+              
+              // Clear success message after 3 seconds
+              setTimeout(() => {
+                setCsvSuccess(null);
+              }, 3000);
+            } else {
+              setCsvError('추가된 간호사가 없습니다. 파일을 확인해주세요.');
+            }
+          } catch (err: any) {
+            setCsvError(`CSV 파일 처리 중 오류: ${err.message}`);
+            console.error('CSV 처리 오류:', err);
+          } finally {
+            setCsvLoading(false);
+            setIsImporting(false);
+            if (fileInputRef.current) {
+              fileInputRef.current.value = '';
+            }
+          }
+        },
+        error: (error) => {
+          setCsvError(`CSV 파일 파싱 중 오류: ${error.message}`);
+          setCsvLoading(false);
+          setIsImporting(false);
+        }
+      });
     }
   };
 
@@ -252,20 +404,20 @@ const NurseManagement: React.FC = () => {
                   >
                     <option value="">팀 없음</option>
                     {teams.map(team => (
-                      <option key={team.id} value={team.id}>
-                        {team.name}
-                      </option>
+                      <option key={team.id} value={team.id}>{team.name}</option>
                     ))}
                   </select>
                 </div>
                 
                 <div className="d-flex justify-content-between">
-                  <button 
-                    type="submit" 
-                    className="btn btn-primary" 
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
                     disabled={isLoading}
                   >
-                    {isLoading ? '처리 중...' : (editingId ? '수정' : '추가')}
+                    {isLoading 
+                      ? '처리 중...' 
+                      : (editingId ? '정보 수정' : '추가하기')}
                   </button>
                   
                   {editingId && (
@@ -281,33 +433,88 @@ const NurseManagement: React.FC = () => {
               </form>
             </div>
           </div>
+          
+          {/* CSV File Upload */}
+          <div className="card mt-4">
+            <div className="card-header">
+              CSV 파일로 간호사 일괄 등록
+            </div>
+            <div className="card-body">
+              {csvError && <div className="alert alert-danger">{csvError}</div>}
+              {csvSuccess && <div className="alert alert-success">{csvSuccess}</div>}
+              
+              <p className="mb-3">
+                CSV 파일을 업로드하여 데이터베이스에 간호사를 일괄 등록할 수 있습니다. 
+                <br />
+                <small className="text-muted">
+                  CSV 파일 형식: 이름, 경력(년), 팀(A/B/C/-), 선호 근무(D, E, N)
+                </small>
+              </p>
+              
+              <div className="mb-3">
+                <label htmlFor="csv-file" className="form-label">CSV 파일 선택</label>
+                <input
+                  type="file"
+                  className="form-control"
+                  id="csv-file"
+                  accept=".csv"
+                  onChange={handleFileChange}
+                  disabled={csvLoading}
+                  ref={fileInputRef}
+                />
+              </div>
+              
+              {csvLoading && (
+                <div className="text-center my-3">
+                  <div className="spinner-border spinner-border-sm text-primary me-2" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                  </div>
+                  <span>{isImporting ? '간호사 데이터를 DB에 가져오는 중...' : '처리 중...'}</span>
+                </div>
+              )}
+              
+              <div className="mt-3">
+                <small className="text-muted">
+                  * CSV 파일의 내용은 데이터베이스에 추가됩니다. nurse.csv 파일의 내용은 변경되지 않습니다.
+                </small>
+              </div>
+            </div>
+          </div>
         </div>
         
         <div className="col-md-8">
           <div className="card">
-            <div className="card-header">간호사 목록</div>
+            <div className="card-header">
+              간호사 목록
+            </div>
             <div className="card-body">
-              {isLoading && !nurses.length ? (
-                <p>로딩 중...</p>
-              ) : nurses.length ? (
+              {isLoading ? (
+                <div className="text-center mt-4">
+                  <div className="spinner-border" role="status">
+                    <span className="visually-hidden">로딩중...</span>
+                  </div>
+                </div>
+              ) : nurses.length > 0 ? (
                 <div className="table-responsive">
                   <table className="table table-striped">
                     <thead>
                       <tr>
                         <th>이름</th>
-                        <th>경력 (년)</th>
+                        <th>경력</th>
                         <th>근무 가능 시간대</th>
                         <th>팀</th>
-                        <th>작업</th>
+                        <th>동작</th>
                       </tr>
                     </thead>
                     <tbody>
                       {nurses.map(nurse => (
                         <tr key={nurse.id}>
                           <td>{nurse.name}</td>
-                          <td>{nurse.years_experience}</td>
-                          <td>{nurse.available_shift_types.join(', ')}</td>
-                          <td>{nurse.team_name || '-'}</td>
+                          <td>{nurse.years_experience}년</td>
+                          <td>
+                            {nurse.available_shift_types?.join(', ') || '정보 없음'}
+                          </td>
+                          <td>{nurse.team_name || '팀 없음'}</td>
                           <td>
                             <button
                               className="btn btn-sm btn-outline-primary me-1"
@@ -317,7 +524,7 @@ const NurseManagement: React.FC = () => {
                             </button>
                             <button
                               className="btn btn-sm btn-outline-danger"
-                              onClick={() => nurse.id && handleDelete(nurse.id)}
+                              onClick={() => handleDelete(nurse.id as number)}
                             >
                               삭제
                             </button>
@@ -328,7 +535,9 @@ const NurseManagement: React.FC = () => {
                   </table>
                 </div>
               ) : (
-                <p>등록된 간호사가 없습니다.</p>
+                <div className="alert alert-info mt-3">
+                  등록된 간호사가 없습니다. 새 간호사를 추가해보세요.
+                </div>
               )}
             </div>
           </div>

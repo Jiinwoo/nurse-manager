@@ -3,7 +3,7 @@ export interface Nurse {
   name: string;
   years_experience: number;
   available_shift_types: string[];
-  team_id?: number | null;
+  team_id: number | null;
   team_name?: string;
   created_at?: string;
   updated_at?: string;
@@ -26,7 +26,7 @@ export interface Shift {
   notes?: string;
   created_at?: string;
   updated_at?: string;
-  nurse_name?: string; // For joined queries
+  nurse_name?: string;
 }
 
 export interface ApiResponse<T> {
