@@ -26,6 +26,8 @@ contextBridge.exposeInMainWorld('api', {
     create: (shiftData: any) => ipcRenderer.invoke('shift:create', shiftData),
     update: (id: number, shiftData: any) => ipcRenderer.invoke('shift:update', id, shiftData),
     delete: (id: number) => ipcRenderer.invoke('shift:delete', id),
+    generateMonthlySchedule: (params: any) => ipcRenderer.invoke('shift:generateMonthlySchedule', params),
+    saveGeneratedSchedule: (shifts: any) => ipcRenderer.invoke('shift:saveGeneratedSchedule', shifts),
   },
   
   // Team operations

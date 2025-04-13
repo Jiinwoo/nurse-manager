@@ -29,4 +29,16 @@
 import './index.css';
 import './app';
 
+// Shift 인터페이스 정의 및 export
+export interface Shift {
+  nurse_id: number;
+  shift_date: string;
+  shift_type: string;
+  status: string;
+  notes?: string;
+  nurse_name?: string;
+  team_name?: string | null;
+  years_experience?: number;
+}
+
 console.log('👋 This message is being logged by "renderer.ts", included via Vite');

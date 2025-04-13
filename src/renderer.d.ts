@@ -27,6 +27,8 @@ export interface Shift {
   created_at?: string;
   updated_at?: string;
   nurse_name?: string;
+  team_name?: string | null;
+  years_experience?: number;
 }
 
 export interface ShiftPreference {
@@ -54,6 +56,24 @@ interface ShiftApi {
   create: (shiftData: Omit<Shift, 'id' | 'created_at' | 'updated_at' | 'nurse_name'>) => Promise<ApiResponse<any>>;
   update: (id: number, shiftData: Partial<Omit<Shift, 'id' | 'nurse_id' | 'created_at' | 'updated_at' | 'nurse_name'>>) => Promise<ApiResponse<any>>;
   delete: (id: number) => Promise<ApiResponse<any>>;
+  generateMonthlySchedule: (params: {
+    year: number;
+    month: number;
+    nurses: number[];
+    preferences: ShiftPreference[];
+    rules: {
+      maxConsecutiveWorkDays: number;
+      maxConsecutiveNightShifts: number;
+      minOffsAfterNights: number;
+      maxNightShiftsPerMonth: number;
+      dayEveningNurseCount: number;
+      nightNurseCount: number;
+      requireSeniorNurseAtNight: boolean;
+      maxOffDaysPerMonth: number;
+      teamDistribution: boolean;
+    }
+  }) => Promise<ApiResponse<Shift[]>>;
+  saveGeneratedSchedule: (shifts: Shift[]) => Promise<ApiResponse<any>>;
 }
 
 interface TeamApi {
