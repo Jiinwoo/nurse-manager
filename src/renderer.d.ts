@@ -29,6 +29,18 @@ export interface Shift {
   nurse_name?: string;
 }
 
+export interface ShiftPreference {
+  id?: number;
+  nurse_id: number;
+  preference_date: string;
+  preference_type: string; // 'day', 'evening', 'night', 'off'
+  priority?: number; // 우선순위 (선택 사항)
+  notes?: string;
+  created_at?: string;
+  updated_at?: string;
+  nurse_name?: string;
+}
+
 export interface ApiResponse<T> {
   success: boolean;
   data?: T;
@@ -65,10 +77,20 @@ interface NurseApi {
   assignToTeam: (id: number, teamId: number) => Promise<ApiResponse<any>>;
 }
 
+interface ShiftPreferenceApi {
+  getAll: () => Promise<ApiResponse<ShiftPreference[]>>;
+  getByNurseId: (nurseId: number) => Promise<ApiResponse<ShiftPreference[]>>;
+  getByDateRange: (startDate: string, endDate: string) => Promise<ApiResponse<ShiftPreference[]>>;
+  create: (preferenceData: Omit<ShiftPreference, 'id' | 'created_at' | 'updated_at' | 'nurse_name'>) => Promise<ApiResponse<any>>;
+  update: (id: number, preferenceData: Partial<Omit<ShiftPreference, 'id' | 'nurse_id' | 'created_at' | 'updated_at' | 'nurse_name'>>) => Promise<ApiResponse<any>>;
+  delete: (id: number) => Promise<ApiResponse<any>>;
+}
+
 interface ElectronApi {
   nurses: NurseApi;
   shifts: ShiftApi;
   teams: TeamApi;
+  shiftPreferences: ShiftPreferenceApi;
 }
 
 declare global {

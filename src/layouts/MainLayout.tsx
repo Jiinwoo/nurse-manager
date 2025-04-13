@@ -38,6 +38,13 @@ const MainLayout: React.FC = () => {
                   근무 일정
                 </NavLink>
               </li>
+              <li className="nav-item">
+                <NavLink to="/shift-preference" className={({ isActive }) => 
+                  `nav-link ${isActive ? 'active' : ''}`
+                }>
+                  희망 근무 신청
+                </NavLink>
+              </li>
             </ul>
           </div>
         </div>

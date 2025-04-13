@@ -37,5 +37,15 @@ contextBridge.exposeInMainWorld('api', {
     create: (teamData: any) => ipcRenderer.invoke('team:create', teamData),
     update: (id: number, teamData: any) => ipcRenderer.invoke('team:update', id, teamData),
     delete: (id: number) => ipcRenderer.invoke('team:delete', id),
+  },
+  
+  // Shift Preference operations
+  shiftPreferences: {
+    getAll: () => ipcRenderer.invoke('shiftPreference:getAll'),
+    getByNurseId: (nurseId: number) => ipcRenderer.invoke('shiftPreference:getByNurseId', nurseId),
+    getByDateRange: (startDate: string, endDate: string) => ipcRenderer.invoke('shiftPreference:getByDateRange', startDate, endDate),
+    create: (prefData: any) => ipcRenderer.invoke('shiftPreference:create', prefData),
+    update: (id: number, prefData: any) => ipcRenderer.invoke('shiftPreference:update', id, prefData),
+    delete: (id: number) => ipcRenderer.invoke('shiftPreference:delete', id),
   }
 });

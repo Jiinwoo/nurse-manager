@@ -50,7 +50,7 @@ const createWindow = () => {
 async function setupIpcHandlers() {
   try {
     // 데이터베이스 초기화 및 작업 객체 가져오기
-    const { nurseOperations, shiftOperations, teamOperations } = await initDb();
+    const { nurseOperations, shiftOperations, teamOperations, shiftPreferenceOperations } = await initDb();
     dbInitialized = true;
     
     // Nurse operations
@@ -256,6 +256,64 @@ async function setupIpcHandlers() {
         return { success: false, error: error.message };
       }
     });
+
+    // ShiftPreference operations
+    ipcMain.handle('shiftPreference:getAll', async () => {
+      try {
+        return { success: true, data: shiftPreferenceOperations.getAll() };
+      } catch (error) {
+        console.error('Error getting shift preferences:', error);
+        return { success: false, error: error.message };
+      }
+    });
+
+    ipcMain.handle('shiftPreference:getByNurseId', async (_, nurseId) => {
+      try {
+        return { success: true, data: shiftPreferenceOperations.getByNurseId(nurseId) };
+      } catch (error) {
+        console.error(`Error getting preferences for nurse ${nurseId}:`, error);
+        return { success: false, error: error.message };
+      }
+    });
+
+    ipcMain.handle('shiftPreference:getByDateRange', async (_, startDate, endDate) => {
+      try {
+        return { success: true, data: shiftPreferenceOperations.getByDateRange(startDate, endDate) };
+      } catch (error) {
+        console.error(`Error getting preferences between ${startDate} and ${endDate}:`, error);
+        return { success: false, error: error.message };
+      }
+    });
+
+    ipcMain.handle('shiftPreference:create', async (_, prefData) => {
+      try {
+        const result = shiftPreferenceOperations.create(prefData);
+        return { success: true, data: result };
+      } catch (error) {
+        console.error('Error creating shift preference:', error);
+        return { success: false, error: error.message };
+      }
+    });
+
+    ipcMain.handle('shiftPreference:update', async (_, id, prefData) => {
+      try {
+        const result = shiftPreferenceOperations.update(id, prefData);
+        return { success: true, data: result };
+      } catch (error) {
+        console.error(`Error updating shift preference ${id}:`, error);
+        return { success: false, error: error.message };
+      }
+    });
+
+    ipcMain.handle('shiftPreference:delete', async (_, id) => {
+      try {
+        const result = shiftPreferenceOperations.delete(id);
+        return { success: true, data: result };
+      } catch (error) {
+        console.error(`Error deleting shift preference ${id}:`, error);
+        return { success: false, error: error.message };
+      }
+    });
     
     console.log('IPC 핸들러 설정 완료');
   } catch (error) {
@@ -298,6 +356,14 @@ function setupErrorHandlers() {
   ipcMain.handle('shift:create', async () => errorResponse);
   ipcMain.handle('shift:update', async () => errorResponse);
   ipcMain.handle('shift:delete', async () => errorResponse);
+
+  // ShiftPreference operations with error responses
+  ipcMain.handle('shiftPreference:getAll', async () => errorResponse);
+  ipcMain.handle('shiftPreference:getByNurseId', async () => errorResponse);
+  ipcMain.handle('shiftPreference:getByDateRange', async () => errorResponse);
+  ipcMain.handle('shiftPreference:create', async () => errorResponse);
+  ipcMain.handle('shiftPreference:update', async () => errorResponse);
+  ipcMain.handle('shiftPreference:delete', async () => errorResponse);
 }
 
 // This method will be called when Electron has finished

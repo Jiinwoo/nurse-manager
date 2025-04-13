@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 import NurseManagement from './pages/NurseManagement';
 import TeamManagement from './pages/TeamManagement';
 import ShiftManagement from './pages/ShiftManagement';
+import ShiftPreferencePage from './pages/ShiftPreference';
 
 const App: React.FC = () => {
   return (
@@ -18,6 +19,7 @@ const App: React.FC = () => {
           <Route path="nurses" element={<NurseManagement />} />
           <Route path="teams" element={<TeamManagement />} />
           <Route path="shifts" element={<ShiftManagement />} />
+          <Route path="shift-preference" element={<ShiftPreferencePage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

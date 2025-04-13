@@ -73,6 +73,21 @@ const initializeDatabase = async () => {
         FOREIGN KEY (team_id) REFERENCES teams (id) ON DELETE SET NULL
       )
     `);
+    
+    // Create shift preferences table if it doesn't exist
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS shift_preferences (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nurse_id INTEGER NOT NULL,
+        preference_date TEXT NOT NULL,
+        preference_type TEXT NOT NULL,
+        priority INTEGER DEFAULT 1,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (nurse_id) REFERENCES nurses (id) ON DELETE CASCADE
+      )
+    `);
 
     console.log('Database initialized successfully');
     return db;
@@ -389,10 +404,110 @@ const createTeamOperations = (db: any) => ({
   }
 });
 
+// Basic CRUD operations for shift preferences
+const createShiftPreferenceOperations = (db: any) => ({
+  // Create a new shift preference
+  create: (prefData: { nurse_id: number; preference_date: string; preference_type: string; priority?: number; notes?: string }) => {
+    const stmt = db.prepare(`
+      INSERT INTO shift_preferences (nurse_id, preference_date, preference_type, priority, notes)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+    return stmt.run(
+      prefData.nurse_id,
+      prefData.preference_date,
+      prefData.preference_type,
+      prefData.priority || 1,
+      prefData.notes || null
+    );
+  },
+
+  // Get all shift preferences
+  getAll: () => {
+    const stmt = db.prepare(`
+      SELECT sp.*, n.name as nurse_name 
+      FROM shift_preferences sp 
+      JOIN nurses n ON sp.nurse_id = n.id
+      ORDER BY preference_date ASC
+    `);
+    return stmt.all();
+  },
+
+  // Get preferences by nurse ID
+  getByNurseId: (nurseId: number) => {
+    const stmt = db.prepare(`
+      SELECT sp.*, n.name as nurse_name 
+      FROM shift_preferences sp 
+      JOIN nurses n ON sp.nurse_id = n.id
+      WHERE sp.nurse_id = ? 
+      ORDER BY preference_date ASC
+    `);
+    return stmt.all(nurseId);
+  },
+
+  // Get preferences by date range
+  getByDateRange: (startDate: string, endDate: string) => {
+    const stmt = db.prepare(`
+      SELECT sp.*, n.name as nurse_name 
+      FROM shift_preferences sp 
+      JOIN nurses n ON sp.nurse_id = n.id
+      WHERE sp.preference_date BETWEEN ? AND ?
+      ORDER BY preference_date ASC, n.name ASC
+    `);
+    return stmt.all(startDate, endDate);
+  },
+
+  // Get a preference by ID
+  getById: (id: number) => {
+    const stmt = db.prepare(`
+      SELECT sp.*, n.name as nurse_name 
+      FROM shift_preferences sp 
+      JOIN nurses n ON sp.nurse_id = n.id
+      WHERE sp.id = ?
+    `);
+    return stmt.get(id);
+  },
+
+  // Update a preference
+  update: (id: number, prefData: { preference_date?: string; preference_type?: string; priority?: number; notes?: string }) => {
+    const updates = [];
+    const params = [];
+
+    // Build dynamic update statement
+    Object.entries(prefData).forEach(([key, value]) => {
+      if (value !== undefined) {
+        updates.push(`${key} = ?`);
+        params.push(value);
+      }
+    });
+
+    if (updates.length === 0) {
+      return { changes: 0 };
+    }
+
+    updates.push('updated_at = CURRENT_TIMESTAMP');
+    params.push(id); // Add id for WHERE clause
+
+    const stmt = db.prepare(`
+      UPDATE shift_preferences 
+      SET ${updates.join(', ')} 
+      WHERE id = ?
+    `);
+    
+    return stmt.run(...params);
+  },
+
+  // Delete a preference
+  delete: (id: number) => {
+    const stmt = db.prepare('DELETE FROM shift_preferences WHERE id = ?');
+    return stmt.run(id);
+  }
+});
+
 // Initialize and export database operations
 let nurseOperations: any = {};
 let shiftOperations: any = {};
 let teamOperations: any = {};
+let shiftPreferenceOperations: any = {};
 
 const initDb = async () => {
   if (!db) {
@@ -400,8 +515,9 @@ const initDb = async () => {
     nurseOperations = createNurseOperations(db);
     shiftOperations = createShiftOperations(db);
     teamOperations = createTeamOperations(db);
+    shiftPreferenceOperations = createShiftPreferenceOperations(db);
   }
-  return { db, nurseOperations, shiftOperations, teamOperations };
+  return { db, nurseOperations, shiftOperations, teamOperations, shiftPreferenceOperations };
 };
 
 // Export as async operations
@@ -410,5 +526,6 @@ export {
   db,
   nurseOperations,
   shiftOperations,
-  teamOperations
+  teamOperations,
+  shiftPreferenceOperations
 }; 
