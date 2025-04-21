@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Shift, Nurse, ShiftPreference } from '../renderer.d';
+
 import { validateSchedule, summarizeValidation } from '../utils/scheduleValidation';
+import { Nurse, Shift, Team, ShiftPreference, ShiftGenerationRules } from '../types';
 
 const ShiftManagement: React.FC = () => {
   const [shifts, setShifts] = useState<Shift[]>([]);
@@ -14,7 +15,14 @@ const ShiftManagement: React.FC = () => {
   const [generatedSchedule, setGeneratedSchedule] = useState<any[]>([]);
   const [targetMonth, setTargetMonth] = useState<string>('');
   const [validationSummary, setValidationSummary] = useState<string | null>(null);
-  
+  const [previousMonthShifts, setPreviousMonthShifts] = useState<Shift[]>([]);
+  const [showPreviousMonthInput, setShowPreviousMonthInput] = useState(false);
+  const [manualPreviousShifts, setManualPreviousShifts] = useState<{
+    nurse_id: number;
+    shift_date: string;
+    shift_type: string;
+  }[]>([]);
+
   // Load data on component mount
   useEffect(() => {
     loadData();
@@ -29,19 +37,19 @@ const ShiftManagement: React.FC = () => {
         window.api.nurses.getAll(),
         window.api.shiftPreferences.getAll()
       ]);
-      
+
       if (shiftResponse.success) {
         setShifts(shiftResponse.data || []);
       } else {
         setError(shiftResponse.error || '근무 데이터를 가져오는 중 오류가 발생했습니다.');
       }
-      
+
       if (nurseResponse.success) {
         setNurses(nurseResponse.data || []);
       } else {
         console.error('간호사 데이터를 가져오는 중 오류:', nurseResponse.error);
       }
-      
+
       if (preferenceResponse.success) {
         setPreferences(preferenceResponse.data || []);
       } else {
@@ -55,7 +63,53 @@ const ShiftManagement: React.FC = () => {
     }
   };
 
-  // 다음달 듀티 표 생성
+  // 이전 달 마지막 5일 근무 데이터 자동 로드
+  const loadPreviousMonthShifts = async () => {
+    if (!targetMonth) return;
+
+    const [year, month] = targetMonth.split('-').map(Number);
+    const prevMonth = month === 1 ? 12 : month - 1;
+    const prevYear = month === 1 ? year - 1 : year;
+    const lastDayOfPrevMonth = new Date(prevYear, prevMonth, 0).getDate();
+    const startDay = lastDayOfPrevMonth - 4; // 마지막 5일
+
+    try {
+      const response = await window.api.shifts.getByDateRange(
+        {
+          startDate: `${prevYear}-${String(prevMonth).padStart(2, '0')}-${startDay}`,
+          endDate: `${prevYear}-${String(prevMonth).padStart(2, '0')}-${lastDayOfPrevMonth}`
+        }
+      );
+
+      if (response.success) {
+        setPreviousMonthShifts(response.data || []);
+      }
+    } catch (err) {
+      console.error('이전 달 근무 데이터 로드 중 오류:', err);
+    }
+  };
+
+  // 이전 달 근무 수동 입력 처리
+  const handleManualShiftChange = (nurseId: number, date: string, shiftType: string) => {
+    setManualPreviousShifts(prev => {
+      const newShifts = [...prev];
+      const existingIndex = newShifts.findIndex(s => s.nurse_id === nurseId && s.shift_date === date);
+
+      if (existingIndex >= 0) {
+        newShifts[existingIndex].shift_type = shiftType;
+      } else {
+        newShifts.push({
+          nurse_id: nurseId,
+          shift_date: date,
+          shift_type: shiftType
+        });
+      }
+
+      return newShifts;
+    });
+  };
+
+  // 근무표 생성 함수 수정
   const generateSchedule = async () => {
     if (!targetMonth) {
       setError('대상 월을 선택해주세요.');
@@ -67,51 +121,54 @@ const ShiftManagement: React.FC = () => {
     setValidationSummary(null);
 
     try {
-      // 선택한 월의 첫 날과 마지막 날 계산
       const [year, month] = targetMonth.split('-').map(Number);
       const firstDay = new Date(year, month - 1, 1);
       const lastDay = new Date(year, month, 0);
       const daysInMonth = lastDay.getDate();
-      
+
       // 공휴일 목록 (임시로 주말만 계산)
       const holidays = [];
       for (let day = 1; day <= daysInMonth; day++) {
         const date = new Date(year, month - 1, day);
-        if (date.getDay() === 0 || date.getDay() === 6) { // 토요일, 일요일
+        if (date.getDay() === 0 || date.getDay() === 6) {
           holidays.push(date.toISOString().split('T')[0]);
         }
       }
-      
+
+      // 이전 달 근무 데이터 준비
+      const previousShifts = showPreviousMonthInput ? manualPreviousShifts : previousMonthShifts;
+
       // API 호출하여 스케줄 생성
       const response = await window.api.shifts.generateMonthlySchedule({
         year,
-        month: month - 1, // JavaScript에서 월은 0부터 시작
+        month: month - 1,
         nurses: nurses.map(nurse => nurse.id),
         preferences: preferences.filter(p => {
           const prefDate = new Date(p.preference_date);
           return prefDate.getMonth() === month - 1 && prefDate.getFullYear() === year;
         }),
+
         rules: {
-          maxConsecutiveWorkDays: 4, // 연달아 5일 이상 근무 금지
-          maxConsecutiveNightShifts: 3, // 나이트 연속 최대 3일
-          minOffsAfterNights: 2, // 나이트 후 최소 2일 오프
-          maxNightShiftsPerMonth: 8, // 한달 나이트 최대 8개
-          dayEveningNurseCount: 4, // Day, Evening 근무 인원
-          nightNurseCount: 3, // Night 근무 인원
-          requireSeniorNurseAtNight: true, // 나이트에 5년차 이상 필수
-          maxOffDaysPerMonth: 9, // 오프 최대 9일
-          teamDistribution: true // 팀 분배 규칙 적용
+          maxConsecutiveWorkDays: 4,
+          maxConsecutiveNightShifts: 3,
+          minOffsAfterNights: 2,
+          maxNightShiftsPerMonth: 8,
+          dayEveningNurseCount: 4,
+          nightNurseCount: 3,
+          requireSeniorNurseAtNight: true,
+          maxOffDaysPerMonth: 9,
+          teamDistribution: true
         }
       });
 
       if (response.success) {
         const generatedShifts = response.data || [];
         setGeneratedSchedule(generatedShifts);
-        
+
         // 근무표 검증
         const validation = validateSchedule(
-          generatedShifts, 
-          nurses, 
+          generatedShifts,
+          nurses,
           {
             maxConsecutiveWorkDays: 4,
             maxConsecutiveNightShifts: 3,
@@ -126,7 +183,7 @@ const ShiftManagement: React.FC = () => {
           preferences,
           holidays
         );
-        
+
         // 검증 결과 요약
         setValidationSummary(summarizeValidation(validation));
       } else {
@@ -152,7 +209,7 @@ const ShiftManagement: React.FC = () => {
 
     try {
       const response = await window.api.shifts.saveGeneratedSchedule(generatedSchedule);
-      
+
       if (response.success) {
         // 저장 후 데이터 다시 로드
         await loadData();
@@ -175,14 +232,14 @@ const ShiftManagement: React.FC = () => {
 
     // 날짜별로 그룹화
     const scheduleByDate: Record<string, any[]> = {};
-    
+
     generatedSchedule.forEach(shift => {
       if (!scheduleByDate[shift.shift_date]) {
         scheduleByDate[shift.shift_date] = [];
       }
       scheduleByDate[shift.shift_date].push(shift);
     });
-    
+
     // 날짜순으로 정렬
     return Object.keys(scheduleByDate)
       .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
@@ -195,14 +252,14 @@ const ShiftManagement: React.FC = () => {
   // Helper function to group shifts by date
   const getShiftsByDate = () => {
     const shiftsByDate: Record<string, Shift[]> = {};
-    
+
     shifts.forEach(shift => {
       if (!shiftsByDate[shift.shift_date]) {
         shiftsByDate[shift.shift_date] = [];
       }
       shiftsByDate[shift.shift_date].push(shift);
     });
-    
+
     // Sort dates in descending order (newest first)
     return Object.keys(shiftsByDate)
       .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
@@ -274,14 +331,14 @@ const ShiftManagement: React.FC = () => {
   return (
     <div>
       <h2 className="page-title">근무 일정</h2>
-      
+
       {error && (
         <div className="alert alert-danger">{error}</div>
       )}
-      
+
       <div className="mb-4">
         <p className="text-muted">
-          이 페이지에서는 간호사들의 근무 일정을 확인할 수 있습니다. 
+          이 페이지에서는 간호사들의 근무 일정을 확인할 수 있습니다.
           근무 일정을 추가하고 관리하는 기능은 곧 제공될 예정입니다.
         </p>
         <div className="alert alert-info">
@@ -305,25 +362,96 @@ const ShiftManagement: React.FC = () => {
           <div className="row g-3 align-items-end">
             <div className="col-md-4">
               <label htmlFor="target-month" className="form-label">대상 월 선택</label>
-              <input 
-                type="month" 
-                id="target-month" 
-                className="form-control" 
+              <input
+                type="month"
+                id="target-month"
+                className="form-control"
                 value={targetMonth}
                 onChange={handleMonthChange}
               />
             </div>
             <div className="col-md-4">
-              <button 
-                className="btn btn-primary" 
+              <button
+                className="btn btn-primary"
                 onClick={generateSchedule}
                 disabled={!targetMonth || generatingSchedule}
               >
                 {generatingSchedule ? '생성 중...' : '근무표 생성'}
               </button>
             </div>
+            <div className="col-md-4">
+              <button
+                className="btn btn-outline-secondary"
+                onClick={() => setShowPreviousMonthInput(!showPreviousMonthInput)}
+              >
+                {showPreviousMonthInput ? '이전 달 수동 입력 숨기기' : '이전 달 수동 입력 보기'}
+              </button>
+            </div>
           </div>
-          
+
+          {/* 이전 달 마지막 5일 근무 입력 */}
+          {showPreviousMonthInput && (
+            <div className="mt-4">
+              <h6>이전 달 마지막 5일 근무 입력</h6>
+              <div className="table-responsive">
+                <table className="table table-sm table-bordered">
+                  <thead>
+                    <tr>
+                      <th>간호사</th>
+                      {Array.from({ length: 5 }).map((_, i) => {
+                        const [year, month] = targetMonth.split('-').map(Number);
+                        const prevMonth = month === 1 ? 12 : month - 1;
+                        const prevYear = month === 1 ? year - 1 : year;
+                        const lastDay = new Date(prevYear, prevMonth, 0).getDate();
+                        const date = new Date(prevYear, prevMonth - 1, lastDay - 4 + i);
+                        return (
+                          <th key={i} className="text-center">
+                            {date.getDate()}일
+                            <br />
+                            <small>
+                              {['일', '월', '화', '수', '목', '금', '토'][date.getDay()]}
+                            </small>
+                          </th>
+                        );
+                      })}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {nurses.map(nurse => (
+                      <tr key={nurse.id}>
+                        <td>{nurse.name}</td>
+                        {Array.from({ length: 5 }).map((_, i) => {
+                          const [year, month] = targetMonth.split('-').map(Number);
+                          const prevMonth = month === 1 ? 12 : month - 1;
+                          const prevYear = month === 1 ? year - 1 : year;
+                          const lastDay = new Date(prevYear, prevMonth, 0).getDate();
+                          const date = `${prevYear}-${String(prevMonth).padStart(2, '0')}-${String(lastDay - 4 + i).padStart(2, '0')}`;
+                          const shift = manualPreviousShifts.find(s => s.nurse_id === nurse.id && s.shift_date === date);
+
+                          return (
+                            <td key={i} className="text-center">
+                              <select
+                                className="form-select form-select-sm"
+                                value={shift?.shift_type || ''}
+                                onChange={(e) => handleManualShiftChange(nurse.id!, date, e.target.value)}
+                              >
+                                <option value="">-</option>
+                                <option value="day">D</option>
+                                <option value="evening">E</option>
+                                <option value="night">N</option>
+                                <option value="off">Off</option>
+                              </select>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           <div className="mt-3">
             <div className="alert alert-warning">
               <strong>근무표 생성 규칙:</strong>
@@ -344,7 +472,7 @@ const ShiftManagement: React.FC = () => {
           </div>
         </div>
       </div>
-      
+
       {/* 검증 결과 표시 */}
       {validationSummary && (
         <div className="card mb-4">
@@ -356,14 +484,14 @@ const ShiftManagement: React.FC = () => {
           </div>
         </div>
       )}
-      
+
       {/* 생성된 듀티 표 미리보기 섹션 */}
       {generatedSchedule.length > 0 && (
         <div className="card mb-4">
           <div className="card-header d-flex justify-content-between align-items-center">
             <h5 className="mb-0">생성된 근무표 미리보기</h5>
-            <button 
-              className="btn btn-success" 
+            <button
+              className="btn btn-success"
               onClick={saveGeneratedSchedule}
               disabled={isLoading}
             >
@@ -400,15 +528,15 @@ const ShiftManagement: React.FC = () => {
                       {formatScheduleData().map(({ date, shifts }) => {
                         const nurseShift = shifts.find(s => s.nurse_id === nurse.id);
                         const preference = getNursePreference(nurse.id!, date);
-                        const shiftTypeClass = nurseShift ? 
+                        const shiftTypeClass = nurseShift ?
                           nurseShift.shift_type === 'day' ? 'bg-warning text-dark' :
-                          nurseShift.shift_type === 'evening' ? 'bg-primary text-white' :
-                          nurseShift.shift_type === 'night' ? 'bg-dark text-white' :
-                          nurseShift.shift_type === 'off' ? 'bg-success text-white' : '' 
+                            nurseShift.shift_type === 'evening' ? 'bg-primary text-white' :
+                              nurseShift.shift_type === 'night' ? 'bg-dark text-white' :
+                                nurseShift.shift_type === 'off' ? 'bg-success text-white' : ''
                           : '';
-                        
+
                         const preferenceMatch = preference && nurseShift && preference === nurseShift.shift_type;
-                        
+
                         return (
                           <td key={date} className={`text-center ${shiftTypeClass}`}>
                             {nurseShift ? displayPreferenceType(nurseShift.shift_type) : '-'}
@@ -442,17 +570,17 @@ const ShiftManagement: React.FC = () => {
           <div className="row g-3 align-items-end">
             <div className="col-md-4">
               <label htmlFor="preference-date" className="form-label">날짜 선택</label>
-              <input 
-                type="date" 
-                id="preference-date" 
-                className="form-control" 
+              <input
+                type="date"
+                id="preference-date"
+                className="form-control"
                 value={selectedDate}
                 onChange={handleDateChange}
               />
             </div>
             <div className="col-md-4">
-              <button 
-                className="btn btn-outline-primary" 
+              <button
+                className="btn btn-outline-primary"
                 onClick={togglePreferencesView}
               >
                 {showPreferences ? '희망 근무 숨기기' : '희망 근무 표시'}
@@ -496,7 +624,7 @@ const ShiftManagement: React.FC = () => {
           )}
         </div>
       </div>
-      
+
       {isLoading ? (
         <p>로딩 중...</p>
       ) : getShiftsByDate().length > 0 ? (
@@ -537,14 +665,13 @@ const ShiftManagement: React.FC = () => {
                               </td>
                             )}
                             <td>
-                              <span className={`badge bg-${
-                                shift.status === 'completed' ? 'success' :
-                                shift.status === 'cancelled' ? 'danger' :
-                                'primary'
-                              }`}>
+                              <span className={`badge bg-${shift.status === 'completed' ? 'success' :
+                                  shift.status === 'cancelled' ? 'danger' :
+                                    'primary'
+                                }`}>
                                 {shift.status === 'completed' ? '완료' :
-                                 shift.status === 'cancelled' ? '취소됨' :
-                                 '예정됨'
+                                  shift.status === 'cancelled' ? '취소됨' :
+                                    '예정됨'
                                 }
                               </span>
                             </td>

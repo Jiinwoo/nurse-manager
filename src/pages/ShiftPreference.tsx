@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Nurse, ShiftPreference } from '../renderer.d';
+import { Nurse, ShiftPreference } from '../types';
 
 const ShiftPreferencePage: React.FC = () => {
   const [preferences, setPreferences] = useState<ShiftPreference[]>([]);
@@ -10,7 +10,7 @@ const ShiftPreferencePage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [calendarDays, setCalendarDays] = useState<Date[]>([]);
-  const [selectedPreferences, setSelectedPreferences] = useState<{[key: string]: string}>({});
+  const [selectedPreferences, setSelectedPreferences] = useState<{ [key: string]: string }>({});
   const [allNursePreferences, setAllNursePreferences] = useState<ShiftPreference[]>([]);
   const [showAllPreferences, setShowAllPreferences] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -60,7 +60,7 @@ const ShiftPreferencePage: React.FC = () => {
     generateCalendarDays(yearMonth);
     // 날짜가 변경되면 이전 선택을 초기화
     setSelectedPreferences({});
-    
+
     // 새 날짜에 대한 기존 선호도 로드
     if (selectedNurse) {
       loadPreferences(selectedNurse, yearMonth);
@@ -95,25 +95,25 @@ const ShiftPreferencePage: React.FC = () => {
   // 선택된 간호사와 날짜 범위에 대한 희망 근무 로드
   const loadPreferences = async (nurseId: number, yearMonth: string) => {
     if (!nurseId || !yearMonth) return;
-    
+
     setIsLoading(true);
     try {
       const [year, month] = yearMonth.split('-').map(Number);
       const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
       const lastDay = new Date(year, month, 0).getDate();
       const endDate = `${year}-${String(month).padStart(2, '0')}-${lastDay}`;
-      
+
       const response = await window.api.shiftPreferences.getByNurseId(nurseId);
-      
+
       if (response.success) {
         const nursePrefs = response.data || [];
         setPreferences(nursePrefs.filter(pref => {
           const prefDate = new Date(pref.preference_date);
           return prefDate.getMonth() + 1 === month && prefDate.getFullYear() === year;
         }));
-        
+
         // 기존 선호도를 선택 상태로 설정
-        const newPreferences: {[key: string]: string} = {};
+        const newPreferences: { [key: string]: string } = {};
         nursePrefs.forEach(pref => {
           newPreferences[pref.preference_date] = pref.preference_type;
         });
@@ -132,16 +132,18 @@ const ShiftPreferencePage: React.FC = () => {
   // 모든 간호사의 희망근무 로드
   const loadAllNursePreferences = async (yearMonth: string) => {
     if (!yearMonth) return;
-    
+
     setIsLoading(true);
     try {
       const [year, month] = yearMonth.split('-').map(Number);
       const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
       const lastDay = new Date(year, month, 0).getDate();
       const endDate = `${year}-${String(month).padStart(2, '0')}-${lastDay}`;
-      
-      const response = await window.api.shiftPreferences.getByDateRange(startDate, endDate);
-      
+
+      const response = await window.api.shiftPreferences.getByDateRange({
+        startDate, endDate
+      });
+
       if (response.success) {
         setAllNursePreferences(response.data || []);
       } else {
@@ -158,7 +160,7 @@ const ShiftPreferencePage: React.FC = () => {
   // 선호도 변경 처리
   const handlePreferenceChange = (date: Date, type: string) => {
     const dateString = date.toISOString().split('T')[0];
-    
+
     setSelectedPreferences(prev => {
       const newPreferences = { ...prev };
       if (newPreferences[dateString] === type) {
@@ -182,7 +184,7 @@ const ShiftPreferencePage: React.FC = () => {
     setIsLoading(true);
     setError(null);
     setSuccess(null);
-    
+
     try {
       // 기존 선호도 삭제 (해당 월에 대해)
       if (preferences.length > 0) {
@@ -190,7 +192,7 @@ const ShiftPreferencePage: React.FC = () => {
           await window.api.shiftPreferences.delete(pref.id!);
         }
       }
-      
+
       // 새 선호도 저장
       const savePromises = Object.entries(selectedPreferences).map(([date, type]) => {
         return window.api.shiftPreferences.create({
@@ -200,10 +202,10 @@ const ShiftPreferencePage: React.FC = () => {
           priority: 1
         });
       });
-      
+
       await Promise.all(savePromises);
       setSuccess('희망 근무가 성공적으로 저장되었습니다.');
-      
+
       // 새로 로드
       if (selectedNurse) {
         loadPreferences(selectedNurse, selectedMonth);
@@ -254,9 +256,9 @@ const ShiftPreferencePage: React.FC = () => {
   const getPreferenceButtonClass = (date: Date, type: string) => {
     const dateString = date.toISOString().split('T')[0];
     const isSelected = selectedPreferences[dateString] === type;
-    
+
     let baseClass = 'btn btn-sm ';
-    
+
     if (isSelected) {
       switch (type) {
         case 'day': return baseClass + 'btn-warning';
@@ -312,22 +314,22 @@ const ShiftPreferencePage: React.FC = () => {
   return (
     <div>
       <h2 className="page-title">희망 근무 신청</h2>
-      
+
       {error && (
         <div className="alert alert-danger">{error}</div>
       )}
-      
+
       {success && (
         <div className="alert alert-success">{success}</div>
       )}
-      
+
       <div className="card mb-4">
         <div className="card-body">
           <div className="row mb-3">
             <div className="col-md-6">
               <label htmlFor="nurse-select" className="form-label">간호사 선택</label>
-              <select 
-                id="nurse-select" 
+              <select
+                id="nurse-select"
                 className="form-select"
                 value={selectedNurse || ''}
                 onChange={handleNurseChange}
@@ -342,21 +344,21 @@ const ShiftPreferencePage: React.FC = () => {
             </div>
             <div className="col-md-6">
               <label htmlFor="month-select" className="form-label">월 선택</label>
-              <input 
-                type="month" 
-                id="month-select" 
+              <input
+                type="month"
+                id="month-select"
                 className="form-control"
                 value={selectedMonth}
                 onChange={handleMonthChange}
               />
             </div>
           </div>
-          
+
           <div className="alert alert-info">
             <strong>희망 근무 신청 안내:</strong> 선호하는 근무 유형(Day, Evening, Night, Off)을 각 날짜에 선택하여 신청할 수 있습니다.
             같은 유형을 다시 클릭하면 선택이 취소됩니다.
           </div>
-          
+
           <div className="mb-3">
             <button
               className="btn btn-outline-info me-2"
@@ -365,7 +367,7 @@ const ShiftPreferencePage: React.FC = () => {
               {showAllPreferences ? '개인별 희망근무 입력으로 돌아가기' : '전체 희망근무 확인하기'}
             </button>
           </div>
-          
+
           {!showAllPreferences ? (
             selectedNurse ? (
               <>
@@ -393,9 +395,9 @@ const ShiftPreferencePage: React.FC = () => {
                                   onClick={() => handlePreferenceChange(day, type)}
                                   disabled={isLoading}
                                 >
-                                  {type === 'day' ? 'D' : 
-                                   type === 'evening' ? 'E' : 
-                                   type === 'night' ? 'N' : 'Off'}
+                                  {type === 'day' ? 'D' :
+                                    type === 'evening' ? 'E' :
+                                      type === 'night' ? 'N' : 'Off'}
                                 </button>
                               ))}
                             </div>
@@ -405,10 +407,10 @@ const ShiftPreferencePage: React.FC = () => {
                     </tbody>
                   </table>
                 </div>
-                
+
                 <div className="d-flex justify-content-end mt-3">
-                  <button 
-                    className="btn btn-primary" 
+                  <button
+                    className="btn btn-primary"
                     onClick={savePreferences}
                     disabled={isLoading || !selectedNurse}
                   >
@@ -425,7 +427,7 @@ const ShiftPreferencePage: React.FC = () => {
             // 전체 희망근무 표시
             <>
               <h4 className="mt-4 mb-3">{selectedMonth.split('-')[0]}년 {selectedMonth.split('-')[1]}월 전체 희망근무</h4>
-              
+
               {selectedDate ? (
                 // 선택 날짜의 희망 근무 상세 표시
                 <div className="card mb-3">
@@ -518,7 +520,7 @@ const ShiftPreferencePage: React.FC = () => {
           )}
         </div>
       </div>
-      
+
       <div className="card">
         <div className="card-header">
           <h5 className="mb-0">희망 근무 범례</h5>

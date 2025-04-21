@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Nurse, Team } from '../renderer.d';
+import { Nurse, Team } from '../types';
 import Papa from 'papaparse';
 
 interface CsvNurseData {
@@ -27,12 +27,12 @@ const NurseManagement: React.FC = () => {
   });
   const [editingId, setEditingId] = useState<number | null>(null);
   const [isImporting, setIsImporting] = useState(false);
-  const [sortConfig, setSortConfig] = useState<{key: keyof Nurse | 'team_name', direction: 'asc' | 'desc'}>({
+  const [sortConfig, setSortConfig] = useState<{ key: keyof Nurse | 'team_name', direction: 'asc' | 'desc' }>({
     key: 'years_experience',
     direction: 'desc'
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Available shift types constants
   const SHIFT_TYPES = ['Day', 'Evening', 'Night'];
 
@@ -49,13 +49,13 @@ const NurseManagement: React.FC = () => {
         window.api.nurses.getAll(),
         window.api.teams.getAll()
       ]);
-      
+
       if (nurseResponse.success) {
         setNurses(nurseResponse.data || []);
       } else {
         setError(nurseResponse.error || '간호사 데이터를 가져오는 중 오류가 발생했습니다.');
       }
-      
+
       if (teamResponse.success) {
         setTeams(teamResponse.data || []);
       } else {
@@ -72,7 +72,7 @@ const NurseManagement: React.FC = () => {
   // Handle form input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target as HTMLInputElement;
-    
+
     if (name === 'years_experience') {
       // Convert string to number for years_experience
       setFormData(prev => ({ ...prev, [name]: parseInt(value, 10) || 0 }));
@@ -89,7 +89,7 @@ const NurseManagement: React.FC = () => {
   const handleShiftTypeChange = (shiftType: string) => {
     setFormData(prev => {
       const currentTypes = [...(prev.available_shift_types || [])];
-      
+
       if (currentTypes.includes(shiftType)) {
         // Remove the shift type if it already exists
         return {
@@ -111,16 +111,16 @@ const NurseManagement: React.FC = () => {
     // Expected format: "(D, E, N)" or similar
     const shiftTypesMatch = shiftTypesStr.match(/\(([^)]+)\)/);
     if (!shiftTypesMatch) return [];
-    
+
     const csvShiftTypes = shiftTypesMatch[1].split(',').map(type => type.trim());
     const dbShiftTypes: string[] = [];
-    
+
     for (const type of csvShiftTypes) {
       if (type === 'D') dbShiftTypes.push('Day');
       else if (type === 'E') dbShiftTypes.push('Evening');
       else if (type === 'N') dbShiftTypes.push('Night');
     }
-    
+
     return dbShiftTypes;
   };
 
@@ -175,11 +175,11 @@ const NurseManagement: React.FC = () => {
   // Find team ID by team code
   const findTeamIdByCode = (teamCode: string): number | null => {
     if (!teamCode || teamCode === '-') return null;
-    
+
     const team = teams.find(t => t.name === `${teamCode}`);
     return team?.id || null;
   };
-  
+
   // Handle CSV file selection and upload
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -188,11 +188,11 @@ const NurseManagement: React.FC = () => {
         setCsvError('CSV 파일만 업로드 가능합니다.');
         return;
       }
-      
+
       setCsvLoading(true);
       setIsImporting(true);
       setCsvError(null);
-      
+
       Papa.parse<CsvNurseData>(file, {
         header: true,
         skipEmptyLines: true,
@@ -204,9 +204,9 @@ const NurseManagement: React.FC = () => {
               setIsImporting(false);
               return;
             }
-            
+
             let successCount = 0;
-            
+
             // Process each row
             for (const row of results.data) {
               try {
@@ -216,29 +216,29 @@ const NurseManagement: React.FC = () => {
                 const yearsExperienceStr = row['연차'] || row[1];
                 const teamCode = row['팀'] || row[2];
                 const shiftTypesStr = row['선호 근무'] || row[3];
-                
+
                 if (!name || !yearsExperienceStr || !shiftTypesStr) {
                   console.warn('Skipping row with missing data:', row);
                   continue;
                 }
-                
+
                 // Parse years of experience
                 const years_experience = parseInt(yearsExperienceStr, 10);
                 if (isNaN(years_experience)) {
                   console.warn('Skipping row with invalid years of experience:', row);
                   continue;
                 }
-                
+
                 // Convert shift types
                 const available_shift_types = convertShiftTypes(shiftTypesStr);
                 if (available_shift_types.length === 0) {
                   console.warn('Skipping row with invalid shift types:', row);
                   continue;
                 }
-                
+
                 // Find team ID
                 const team_id = findTeamIdByCode(teamCode);
-                
+
                 // Create nurse object
                 const nurseData = {
                   name,
@@ -246,10 +246,10 @@ const NurseManagement: React.FC = () => {
                   available_shift_types,
                   team_id
                 };
-                
+
                 // Create nurse in database
                 const response = await window.api.nurses.create(nurseData);
-                
+
                 if (response.success) {
                   successCount++;
                 } else {
@@ -259,11 +259,11 @@ const NurseManagement: React.FC = () => {
                 console.error('Error processing CSV row:', row, rowError);
               }
             }
-            
+
             if (successCount > 0) {
               setCsvSuccess(`${successCount}명의 간호사가 성공적으로 데이터베이스에 추가되었습니다.`);
               await loadData(); // Reload the nurse list
-              
+
               // Clear success message after 3 seconds
               setTimeout(() => {
                 setCsvSuccess(null);
@@ -318,7 +318,7 @@ const NurseManagement: React.FC = () => {
     if (!window.confirm('정말로 모든 간호사를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
       return;
     }
-    
+
     // Double confirm for critical action
     if (!window.confirm('이 작업은 모든 간호사 데이터를 영구적으로 삭제합니다. 계속하시겠습니까?')) {
       return;
@@ -357,22 +357,22 @@ const NurseManagement: React.FC = () => {
       sortableNurses.sort((a, b) => {
         if (a[sortConfig.key] === null) return 1;
         if (b[sortConfig.key] === null) return -1;
-        
+
         if (sortConfig.key === 'team_name') {
           // Special handling for team_name which might be null
           const aValue = a.team_name || '';
           const bValue = b.team_name || '';
-          return sortConfig.direction === 'asc' 
+          return sortConfig.direction === 'asc'
             ? aValue.localeCompare(bValue)
             : bValue.localeCompare(aValue);
         }
-        
+
         if (typeof a[sortConfig.key] === 'string') {
           return sortConfig.direction === 'asc'
             ? (a[sortConfig.key] as string).localeCompare(b[sortConfig.key] as string)
             : (b[sortConfig.key] as string).localeCompare(a[sortConfig.key] as string);
         }
-        
+
         // For numbers or other types
         return sortConfig.direction === 'asc'
           ? (a[sortConfig.key] as number) - (b[sortConfig.key] as number)
@@ -413,11 +413,11 @@ const NurseManagement: React.FC = () => {
   return (
     <div>
       <h2 className="page-title">간호사 관리</h2>
-      
+
       {error && (
         <div className="alert alert-danger">{error}</div>
       )}
-      
+
       <div className="row">
         <div className="col-md-4">
           <div className="card">
@@ -438,7 +438,7 @@ const NurseManagement: React.FC = () => {
                     required
                   />
                 </div>
-                
+
                 <div className="mb-3">
                   <label htmlFor="years_experience" className="form-label">경력 (년)</label>
                   <input
@@ -451,7 +451,7 @@ const NurseManagement: React.FC = () => {
                     onChange={handleInputChange}
                   />
                 </div>
-                
+
                 <div className="mb-3">
                   <label className="form-label">근무 가능 시간대</label>
                   <div>
@@ -471,7 +471,7 @@ const NurseManagement: React.FC = () => {
                     ))}
                   </div>
                 </div>
-                
+
                 <div className="mb-3">
                   <label htmlFor="team_id" className="form-label">팀</label>
                   <select
@@ -487,18 +487,18 @@ const NurseManagement: React.FC = () => {
                     ))}
                   </select>
                 </div>
-                
+
                 <div className="d-flex justify-content-between">
                   <button
                     type="submit"
                     className="btn btn-primary"
                     disabled={isLoading}
                   >
-                    {isLoading 
-                      ? '처리 중...' 
+                    {isLoading
+                      ? '처리 중...'
                       : (editingId ? '정보 수정' : '추가하기')}
                   </button>
-                  
+
                   {editingId && (
                     <button
                       type="button"
@@ -512,7 +512,7 @@ const NurseManagement: React.FC = () => {
               </form>
             </div>
           </div>
-          
+
           {/* CSV File Upload */}
           <div className="card mt-4">
             <div className="card-header">
@@ -521,15 +521,15 @@ const NurseManagement: React.FC = () => {
             <div className="card-body">
               {csvError && <div className="alert alert-danger">{csvError}</div>}
               {csvSuccess && <div className="alert alert-success">{csvSuccess}</div>}
-              
+
               <p className="mb-3">
-                CSV 파일을 업로드하여 데이터베이스에 간호사를 일괄 등록할 수 있습니다. 
+                CSV 파일을 업로드하여 데이터베이스에 간호사를 일괄 등록할 수 있습니다.
                 <br />
                 <small className="text-muted">
                   CSV 파일 형식: 이름, 경력(년), 팀(A/B/C/-), 선호 근무(D, E, N)
                 </small>
               </p>
-              
+
               <div className="mb-3">
                 <label htmlFor="csv-file" className="form-label">CSV 파일 선택</label>
                 <input
@@ -542,7 +542,7 @@ const NurseManagement: React.FC = () => {
                   ref={fileInputRef}
                 />
               </div>
-              
+
               {csvLoading && (
                 <div className="text-center my-3">
                   <div className="spinner-border spinner-border-sm text-primary me-2" role="status">
@@ -551,7 +551,7 @@ const NurseManagement: React.FC = () => {
                   <span>{isImporting ? '간호사 데이터를 DB에 가져오는 중...' : '처리 중...'}</span>
                 </div>
               )}
-              
+
               <div className="mt-3">
                 <small className="text-muted">
                   * CSV 파일의 내용은 데이터베이스에 추가됩니다. nurse.csv 파일의 내용은 변경되지 않습니다.
@@ -560,7 +560,7 @@ const NurseManagement: React.FC = () => {
             </div>
           </div>
         </div>
-        
+
         <div className="col-md-8">
           <div className="card">
             <div className="card-header d-flex justify-content-between align-items-center">

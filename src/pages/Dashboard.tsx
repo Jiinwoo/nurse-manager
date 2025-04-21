@@ -38,7 +38,7 @@ const Dashboard: React.FC = () => {
   return (
     <div>
       <h2 className="page-title">대시보드</h2>
-      
+
       <div className="row">
         <div className="col-md-4 mb-4">
           <div className="card text-white bg-primary">
@@ -48,7 +48,7 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
         </div>
-        
+
         <div className="col-md-4 mb-4">
           <div className="card text-white bg-success">
             <div className="card-body">
@@ -57,7 +57,7 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
         </div>
-        
+
         <div className="col-md-4 mb-4">
           <div className="card text-white bg-info">
             <div className="card-body">
@@ -67,7 +67,7 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
       </div>
-      
+
       <div className="card mt-4">
         <div className="card-body">
           <h5 className="card-title">시스템 정보</h5>

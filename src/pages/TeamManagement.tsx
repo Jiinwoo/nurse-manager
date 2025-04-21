@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Team, Nurse } from '../renderer.d';
+import { Nurse, Team } from '../types';
 
 const TeamManagement: React.FC = () => {
   const [teams, setTeams] = useState<Team[]>([]);
@@ -38,13 +38,13 @@ const TeamManagement: React.FC = () => {
         window.api.nurses.getAll(),
         window.api.teams.getUnassignedNurses()
       ]);
-      
+
       if (teamResponse.success) {
         setTeams(teamResponse.data || []);
       } else {
         setError(teamResponse.error || '팀 데이터를 가져오는 중 오류가 발생했습니다.');
       }
-      
+
       if (nurseResponse.success) {
         setNurses(nurseResponse.data || []);
       } else {
@@ -226,11 +226,11 @@ const TeamManagement: React.FC = () => {
   return (
     <div>
       <h2 className="page-title">팀 관리</h2>
-      
+
       {error && (
         <div className="alert alert-danger">{error}</div>
       )}
-      
+
       <div className="row">
         <div className="col-md-4">
           <div className="card mb-4">
@@ -251,7 +251,7 @@ const TeamManagement: React.FC = () => {
                     required
                   />
                 </div>
-                
+
                 <div className="mb-3">
                   <label htmlFor="description" className="form-label">설명</label>
                   <textarea
@@ -263,16 +263,16 @@ const TeamManagement: React.FC = () => {
                     onChange={handleInputChange}
                   />
                 </div>
-                
+
                 <div className="d-flex justify-content-between">
-                  <button 
-                    type="submit" 
-                    className="btn btn-primary" 
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
                     disabled={isLoading}
                   >
                     {isLoading ? '처리 중...' : (editingId ? '수정' : '추가')}
                   </button>
-                  
+
                   {editingId && (
                     <button
                       type="button"
@@ -286,7 +286,7 @@ const TeamManagement: React.FC = () => {
               </form>
             </div>
           </div>
-          
+
           <div className="card">
             <div className="card-header">팀 목록</div>
             <div className="card-body">
@@ -335,7 +335,7 @@ const TeamManagement: React.FC = () => {
             </div>
           </div>
         </div>
-        
+
         <div className="col-md-8">
           <div className="card mb-4">
             <div className="card-header">
@@ -381,7 +381,7 @@ const TeamManagement: React.FC = () => {
               )}
             </div>
           </div>
-          
+
           {selectedTeam && (
             <div className="card">
               <div className="card-header">미배정 간호사</div>
