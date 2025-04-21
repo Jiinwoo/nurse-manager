@@ -1,0 +1,46 @@
+---
+description: directory architecture
+globs: 
+alwaysApply: false
+---
+# 간호사 듀티 관리 프로그램 프로젝트 아키텍처
+
+## 디렉토리 구조
+
+- `src/`: 소스 코드가 위치하는 메인 디렉토리
+  - `main.ts`: [main.ts](mdc:src/main.ts) - Electron 메인 프로세스 파일, IPC 통신 설정
+  - `preload.ts`: [preload.ts](mdc:src/preload.ts) - Electron 프리로드 스크립트
+  - `renderer.ts`: [renderer.ts](mdc:src/renderer.ts) - 렌더러 프로세스 타입 정의
+  - `app.tsx`: [app.tsx](mdc:src/app.tsx) - React 애플리케이션 엔트리 포인트
+  - `database.ts`: [database.ts](mdc:src/database.ts) - 데이터베이스 초기화 및 CRUD 작업
+  - `components/`: UI 컴포넌트
+  - `pages/`: 애플리케이션 페이지
+  - `layouts/`: 레이아웃 컴포넌트
+  - `utils/`: 유틸리티 함수
+
+## 아키텍처 패턴
+
+1. **Electron 멀티 프로세스 구조**
+   - 메인 프로세스: Node.js 환경으로 OS 수준 작업 처리
+   - 렌더러 프로세스: 웹 기술(HTML, CSS, JS)로 UI 렌더링
+
+2. **IPC 통신 패턴**
+   - 메인 프로세스와 렌더러 프로세스 간 통신
+   - `ipcMain` 및 `ipcRenderer`를 통한 요청-응답 패턴
+   - 데이터베이스 작업은 메인 프로세스에서 처리
+
+3. **데이터 관리**
+   - SQLite 데이터베이스 사용 (better-sqlite3 라이브러리)
+   - 비즈니스 로직은 메인 프로세스에서 처리
+   - 각 도메인(간호사, 팀, 시프트)별 CRUD 작업 분리
+
+4. **UI 구조**
+   - React 기반 컴포넌트 구조
+   - 페이지 중심 라우팅
+   - 재사용 가능한 컴포넌트 활용
+
+## 빌드 및 배포 시스템
+
+- Vite: 개발 서버 및 빌드 도구
+- Electron Forge: 애플리케이션 패키징 및 배포 도구
+- TypeScript: 타입 안전성 확보

@@ -1,0 +1,68 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# 간호사 듀티 관리 프로그램 도메인 지식
+
+## 핵심 개념
+
+1. **간호사 (Nurse)**
+   - 간호사 정보: 이름, 경력 연수, 가능한 근무 유형
+   - 팀 소속 관계: 한 간호사는 하나의 팀에 소속될 수 있음
+   - [database.ts](mdc:src/database.ts) 내 nurses 테이블 참조
+
+2. **팀 (Team)**
+   - 여러 간호사를 그룹화하는 단위
+   - 팀 정보: 이름, 설명
+   - [database.ts](mdc:src/database.ts) 내 teams 테이블 참조
+
+3. **시프트 (Shift)**
+   - 근무 유형: Day(주간), Evening(초번), Night(야간)
+   - 특성: 날짜, 간호사 ID, 근무 유형, 상태, 메모
+   - [database.ts](mdc:src/database.ts) 내 shifts 테이블 참조
+
+4. **근무 선호도 (Shift Preference)**
+   - 간호사의 특정 날짜에 대한 근무 선호도
+   - 우선순위(priority)로 선호도 강도 표현
+   - [database.ts](mdc:src/database.ts) 내 shift_preferences 테이블 참조
+
+## 비즈니스 규칙
+
+1. **근무 일정 규칙**
+   - 한 간호사는 하루에 한 개의 시프트만 가능
+   - 연속 야간 근무는 최대 3일까지만 가능
+   - 야간 근무 후 최소 48시간의 휴식 필요
+   - [main.ts](mdc:src/main.ts) 내 스케줄링 알고리즘 참조
+
+2. **팀 관리 규칙**
+   - 팀 간 인원 균등 배분 권장
+   - 각 팀은 다양한 경력 수준의 간호사를 포함해야 함
+   - 팀을 삭제하면 소속 간호사들은 미배정 상태가 됨
+
+3. **자동 스케줄링 요구사항**
+   - 공정한 근무 분배 (모든 간호사에게 균등한 근무 기회)
+   - 간호사 선호도 및 요청 고려
+   - 경력에 따른 근무 배정 차등화 가능
+   - [test-schedule-generator.ts](mdc:src/test-schedule-generator.ts) 참조
+
+## 데이터 모델
+
+1. **DB 스키마**
+   - nurses: 간호사 정보 저장
+   - teams: 팀 정보 저장
+   - shifts: 근무 일정 정보 저장
+   - shift_preferences: 근무 선호도 정보 저장
+
+2. **관계**
+   - 간호사 ↔ 팀: 다대일 관계 (한 팀에 여러 간호사)
+   - 간호사 ↔ 시프트: 일대다 관계 (한 간호사가 여러 시프트)
+   - 간호사 ↔ 선호도: 일대다 관계 (한 간호사가 여러 선호도)
+
+## 용어 사전
+
+- **Day Shift (주간)**: 일반적으로 오전 7시부터 오후 3시까지
+- **Evening Shift (초번)**: 일반적으로 오후 3시부터 오후 11시까지
+- **Night Shift (야간)**: 일반적으로 오후 11시부터 오전 7시까지
+- **Duty (듀티)**: 근무 일정을 의미
+- **Float Nurse**: 고정 팀이 없이 필요에 따라 배치되는 간호사
