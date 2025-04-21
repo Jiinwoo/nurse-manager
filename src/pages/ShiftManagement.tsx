@@ -22,11 +22,20 @@ const ShiftManagement: React.FC = () => {
     shift_date: string;
     shift_type: string;
   }[]>([]);
+  const [noPreviousShiftsData, setNoPreviousShiftsData] = useState(false);
+  const [csvError, setCsvError] = useState<string | null>(null);
 
   // Load data on component mount
   useEffect(() => {
     loadData();
   }, []);
+
+  // targetMonth가 변경될 때마다 이전 달 데이터 로드
+  useEffect(() => {
+    if (targetMonth) {
+      loadPreviousMonthShifts();
+    }
+  }, [targetMonth]);
 
   // Load all shifts, nurses, and preferences
   const loadData = async () => {
@@ -66,7 +75,8 @@ const ShiftManagement: React.FC = () => {
   // 이전 달 마지막 5일 근무 데이터 자동 로드
   const loadPreviousMonthShifts = async () => {
     if (!targetMonth) return;
-
+    
+    setNoPreviousShiftsData(false);
     const [year, month] = targetMonth.split('-').map(Number);
     const prevMonth = month === 1 ? 12 : month - 1;
     const prevYear = month === 1 ? year - 1 : year;
@@ -76,16 +86,23 @@ const ShiftManagement: React.FC = () => {
     try {
       const response = await window.api.shifts.getByDateRange(
         {
-          startDate: `${prevYear}-${String(prevMonth).padStart(2, '0')}-${startDay}`,
-          endDate: `${prevYear}-${String(prevMonth).padStart(2, '0')}-${lastDayOfPrevMonth}`
+          startDate: `${prevYear}-${String(prevMonth).padStart(2, '0')}-${String(startDay).padStart(2, '0')}`,
+          endDate: `${prevYear}-${String(prevMonth).padStart(2, '0')}-${String(lastDayOfPrevMonth).padStart(2, '0')}`
         }
       );
 
       if (response.success) {
-        setPreviousMonthShifts(response.data || []);
+        if (response.data && response.data.length > 0) {
+          setPreviousMonthShifts(response.data || []);
+          setNoPreviousShiftsData(false);
+        } else {
+          setPreviousMonthShifts([]);
+          setNoPreviousShiftsData(true);
+        }
       }
     } catch (err) {
       console.error('이전 달 근무 데이터 로드 중 오류:', err);
+      setNoPreviousShiftsData(true);
     }
   };
 
@@ -126,18 +143,6 @@ const ShiftManagement: React.FC = () => {
       const lastDay = new Date(year, month, 0);
       const daysInMonth = lastDay.getDate();
 
-      // 공휴일 목록 (임시로 주말만 계산)
-      const holidays = [];
-      for (let day = 1; day <= daysInMonth; day++) {
-        const date = new Date(year, month - 1, day);
-        if (date.getDay() === 0 || date.getDay() === 6) {
-          holidays.push(date.toISOString().split('T')[0]);
-        }
-      }
-
-      // 이전 달 근무 데이터 준비
-      const previousShifts = showPreviousMonthInput ? manualPreviousShifts : previousMonthShifts;
-
       // API 호출하여 스케줄 생성
       const response = await window.api.shifts.generateMonthlySchedule({
         year,
@@ -165,27 +170,41 @@ const ShiftManagement: React.FC = () => {
         const generatedShifts = response.data || [];
         setGeneratedSchedule(generatedShifts);
 
-        // 근무표 검증
-        const validation = validateSchedule(
-          generatedShifts,
-          nurses,
-          {
-            maxConsecutiveWorkDays: 4,
-            maxConsecutiveNightShifts: 3,
-            minOffsAfterNights: 2,
-            maxNightShiftsPerMonth: 8,
-            dayEveningNurseCount: 4,
-            nightNurseCount: 3,
-            requireSeniorNurseAtNight: true,
-            maxOffDaysPerMonth: 9,
-            teamDistribution: true
-          },
-          preferences,
-          holidays
-        );
+        // 공휴일 목록 (임시로 주말만 계산)
+        // 생성된 근무표에 있는 날짜만 포함
+        const uniqueDates = [...new Set(generatedShifts.map(s => s.shift_date))].sort();
+        const holidays = [];
+        
+        for (const date of uniqueDates) {
+          const currentDate = new Date(date);
+          // 주말(토,일)만 휴일로 처리
+          if (currentDate.getDay() === 0 || currentDate.getDay() === 6) {
+            holidays.push(date);
+          }
+        }
+        console.log(generatedShifts);
 
-        // 검증 결과 요약
-        setValidationSummary(summarizeValidation(validation));
+        // 근무표 검증 TODO: 검증 로직 추가
+        // const validation = validateSchedule(
+        //   generatedShifts,
+        //   nurses,
+        //   {
+        //     maxConsecutiveWorkDays: 4,
+        //     maxConsecutiveNightShifts: 3,
+        //     minOffsAfterNights: 2,
+        //     maxNightShiftsPerMonth: 8,
+        //     dayEveningNurseCount: 4,
+        //     nightNurseCount: 3,
+        //     requireSeniorNurseAtNight: true,
+        //     maxOffDaysPerMonth: 9,
+        //     teamDistribution: true
+        //   },
+        //   preferences,
+        //   holidays
+        // );
+
+        // // 검증 결과 요약
+        // setValidationSummary(summarizeValidation(validation));
       } else {
         setError(response.error || '근무표 생성 중 오류가 발생했습니다.');
       }
@@ -288,6 +307,7 @@ const ShiftManagement: React.FC = () => {
   // 월 선택 변경 처리
   const handleMonthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setTargetMonth(e.target.value);
+    // 이제 targetMonth가 변경되면 useEffect에서 자동으로 loadPreviousMonthShifts 실행됨
   };
 
   // 희망 근무 가져오기
@@ -326,6 +346,58 @@ const ShiftManagement: React.FC = () => {
       case 'off': return 'Off';
       default: return '?';
     }
+  };
+
+  // CSV 파일 처리
+  const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setCsvError(null);
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const csvContent = event.target?.result as string;
+        const lines = csvContent.split('\n');
+        
+        const newShifts: {
+          nurse_id: number;
+          shift_date: string;
+          shift_type: string;
+        }[] = [];
+        
+        // 첫 번째 줄은 헤더로 간주
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+          
+          const [nurseIdStr, date, shiftType] = line.split(',').map(val => val.trim());
+          const nurseId = parseInt(nurseIdStr, 10);
+          
+          if (isNaN(nurseId) || !date || !shiftType) {
+            throw new Error(`잘못된 CSV 형식: ${line}`);
+          }
+          
+          if (!['day', 'evening', 'night', 'off'].includes(shiftType.toLowerCase())) {
+            throw new Error(`잘못된 근무 유형: ${shiftType}. 'day', 'evening', 'night', 'off' 중 하나여야 합니다.`);
+          }
+          
+          newShifts.push({
+            nurse_id: nurseId,
+            shift_date: date,
+            shift_type: shiftType.toLowerCase()
+          });
+        }
+        
+        setManualPreviousShifts(newShifts);
+      } catch (err) {
+        console.error('CSV 파일 처리 중 오류:', err);
+        setCsvError(err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.');
+      }
+    };
+    
+    reader.readAsText(file);
   };
 
   return (
@@ -389,10 +461,57 @@ const ShiftManagement: React.FC = () => {
             </div>
           </div>
 
+          {/* 이전 달 자동 로드 결과 표시 */}
+          {targetMonth && noPreviousShiftsData && !showPreviousMonthInput && (
+            <div className="alert alert-warning mt-3">
+              <strong>알림:</strong> 이전 달 마지막 5일의 근무 데이터가 없습니다. 수동으로 입력하세요.
+            </div>
+          )}
+
           {/* 이전 달 마지막 5일 근무 입력 */}
           {showPreviousMonthInput && (
             <div className="mt-4">
               <h6>이전 달 마지막 5일 근무 입력</h6>
+              
+              {/* CSV 업로드 섹션 */}
+              <div className="mb-3">
+                <label htmlFor="csv-upload" className="form-label">CSV 파일로 일괄 입력</label>
+                <div className="input-group">
+                  <input
+                    type="file"
+                    id="csv-upload"
+                    className="form-control"
+                    accept=".csv"
+                    onChange={handleCsvUpload}
+                  />
+                  <button 
+                    className="btn btn-outline-secondary" 
+                    type="button"
+                    onClick={() => document.getElementById('csv-download-template')?.click()}
+                  >
+                    템플릿 다운로드
+                  </button>
+                  <a
+                    id="csv-download-template"
+                    href={`data:text/csv;charset=utf-8,nurse_id,date,shift_type\n${nurses.map(n => `${n.id},YYYY-MM-DD,type`).join('\n')}`}
+                    download="nurses_shift_template.csv"
+                    style={{ display: 'none' }}
+                  >
+                    다운로드
+                  </a>
+                </div>
+                <small className="form-text text-muted">
+                  CSV 형식: nurse_id,date,shift_type (예: 1,2023-04-26,day)
+                  <br />
+                  shift_type은 day, evening, night, off 중 하나여야 합니다.
+                </small>
+                {csvError && (
+                  <div className="alert alert-danger mt-2">
+                    <strong>CSV 오류:</strong> {csvError}
+                  </div>
+                )}
+              </div>
+              
               <div className="table-responsive">
                 <table className="table table-sm table-bordered">
                   <thead>

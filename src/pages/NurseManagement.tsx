@@ -587,6 +587,9 @@ const NurseManagement: React.FC = () => {
                   <table className="table table-striped">
                     <thead>
                       <tr>
+                        <th onClick={() => requestSort('id')} style={{ cursor: 'pointer' }}>
+                          ID {getSortDirectionIndicator('id')}
+                        </th>
                         <th onClick={() => requestSort('name')} style={{ cursor: 'pointer' }}>
                           이름 {getSortDirectionIndicator('name')}
                         </th>
@@ -605,6 +608,7 @@ const NurseManagement: React.FC = () => {
                     <tbody>
                       {getSortedNurses().map(nurse => (
                         <tr key={nurse.id}>
+                          <td>{nurse.id}</td>
                           <td>{nurse.name}</td>
                           <td>{nurse.years_experience}년</td>
                           <td>

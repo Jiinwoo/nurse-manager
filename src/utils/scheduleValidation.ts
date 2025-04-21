@@ -3,7 +3,9 @@
  * 
  * 이 파일은 생성된 근무표가 규칙을 준수하는지 검증하는 함수들을 포함합니다.
  */
-import { Shift, Nurse } from '../renderer.d';
+
+import { Nurse, Shift } from "src/types";
+
 
 /**
  * 규칙을 나타내는 인터페이스

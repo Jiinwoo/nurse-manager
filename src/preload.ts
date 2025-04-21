@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld('api', {
     getAll: () => ipcRenderer.invoke('shift:getAll'),
     getById: (id: number) => ipcRenderer.invoke('shift:getById', id),
     getByNurseId: (nurseId: number) => ipcRenderer.invoke('shift:getByNurseId', nurseId),
+    getByDateRange: (params: { startDate: string, endDate: string }) => ipcRenderer.invoke('shift:getByDateRange', params),
     create: (shiftData: any) => ipcRenderer.invoke('shift:create', shiftData),
     update: (id: number, shiftData: any) => ipcRenderer.invoke('shift:update', id, shiftData),
     delete: (id: number) => ipcRenderer.invoke('shift:delete', id),
