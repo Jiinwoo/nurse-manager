@@ -1,0 +1,114 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# 간호사 듀티 관리 프로그램 PRD (Product Requirements Document)
+
+## 개요
+
+간호사 듀티 관리 프로그램은 병원 및 의료기관에서 간호사들의 근무 일정을 효율적으로 관리하기 위한 데스크탑 애플리케이션입니다. Electron 기반으로 개발되어 Windows, macOS, Linux 등 다양한 플랫폼에서 사용할 수 있습니다.
+
+## 핵심 기능
+
+### 1. 간호사 관리 ([NurseManagement.tsx](mdc:src/pages/NurseManagement.tsx))
+- 간호사 정보 CRUD (추가, 조회, 수정, 삭제) 기능
+- 간호사 속성: 이름, 경력 연수, 선호 근무 유형, 팀 소속
+- 팀 배정/제외 기능
+
+### 2. 팀 관리 ([TeamManagement.tsx](mdc:src/pages/TeamManagement.tsx))
+- 팀 정보 CRUD (추가, 조회, 수정, 삭제) 기능
+- 팀 속성: 이름, 설명
+- 팀별 간호사 조회 및 관리
+- 미배정 간호사 관리
+
+### 3. 듀티 스케줄 관리 ([ShiftManagement.tsx](mdc:src/pages/ShiftManagement.tsx))
+- 근무 일정 CRUD (추가, 조회, 수정, 삭제) 기능
+- 달력 기반 UI로 근무 일정 시각화
+- 날짜/기간별 일정 조회
+- 간호사별 일정 조회
+- 자동 스케줄 생성 기능
+  - 기간 설정
+  - 근무 패턴 및 제약조건 설정
+  - 근무 타입 설정 (주간/야간/초번)
+
+### 4. 근무 선호도 관리 ([ShiftPreference.tsx](mdc:src/pages/ShiftPreference.tsx))
+- 근무 선호도 CRUD (추가, 조회, 수정, 삭제) 기능
+- 특정 날짜에 대한 선호 근무 유형 설정
+- 선호도 우선순위 설정
+- 메모 기능
+
+## 데이터 모델
+
+### 1. 간호사 (Nurse)
+- id: 고유 식별자
+- name: 이름
+- years_experience: 경력 연수
+- available_shift_types: 가능한 근무 유형 목록
+- team_id: 소속 팀 ID
+- created_at: 생성 일시
+- updated_at: 수정 일시
+
+### 2. 팀 (Team)
+- id: 고유 식별자
+- name: 팀 이름
+- description: 팀 설명
+- created_at: 생성 일시
+- updated_at: 수정 일시
+
+### 3. 근무 일정 (Shift)
+- id: 고유 식별자
+- nurse_id: 간호사 ID
+- shift_date: 근무 날짜
+- shift_type: 근무 유형 (Day, Evening, Night)
+- status: 상태 (scheduled, completed, etc)
+- notes: 메모
+- created_at: 생성 일시
+- updated_at: 수정 일시
+
+### 4. 근무 선호도 (ShiftPreference)
+- id: 고유 식별자
+- nurse_id: 간호사 ID
+- preference_date: 선호 날짜
+- preference_type: 선호 근무 유형
+- priority: 우선순위
+- notes: 메모
+- created_at: 생성 일시
+- updated_at: 수정 일시
+
+## 기술 구현
+
+### 주요 파일 구조
+- 메인 프로세스: [main.ts](mdc:src/main.ts)
+- 프리로드 스크립트: [preload.ts](mdc:src/preload.ts)
+- 렌더러 엔트리: [app.tsx](mdc:src/app.tsx)
+- 데이터베이스 관리: [database.ts](mdc:src/database.ts)
+
+### IPC 통신
+- 간호사 관련 API: [nurseHandler.ts](mdc:src/ipc/nurseHandler.ts)
+- 팀 관련 API: [teamHandler.ts](mdc:src/ipc/teamHandler.ts)
+- 근무 일정 관련 API: [shiftHandler.ts](mdc:src/ipc/shiftHandler.ts)
+- 근무 선호도 관련 API: [shiftPreferenceHandler.ts](mdc:src/ipc/shiftPreferenceHandler.ts)
+
+## 사용자 인터페이스
+
+### 기본 레이아웃
+- 메인 레이아웃: [MainLayout.tsx](mdc:src/layouts/MainLayout.tsx)
+- 대시보드: [Dashboard.tsx](mdc:src/pages/Dashboard.tsx)
+
+### 관리 페이지
+- 간호사 관리 페이지: [NurseManagement.tsx](mdc:src/pages/NurseManagement.tsx)
+- 팀 관리 페이지: [TeamManagement.tsx](mdc:src/pages/TeamManagement.tsx)
+- 근무 일정 관리 페이지: [ShiftManagement.tsx](mdc:src/pages/ShiftManagement.tsx)
+- 근무 선호도 관리 페이지: [ShiftPreference.tsx](mdc:src/pages/ShiftPreference.tsx)
+
+## 향후 개발 계획
+- 휴가 관리 기능 개발
+- 고급 자동 스케줄링 알고리즘 개선
+- 통계 및 보고서 시스템 구현
+- 다국어 지원
+- 모바일 앱 연동
+
+## 개발 정보
+- 개발자: jwjung5038@gmail.com
+- 라이센스: MIT

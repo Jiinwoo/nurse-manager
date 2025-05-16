@@ -1,7 +1,7 @@
 ---
-description: directory architecture
+description: 
 globs: 
-alwaysApply: false
+alwaysApply: true
 ---
 # 간호사 듀티 관리 프로그램 프로젝트 아키텍처
 
@@ -18,29 +18,64 @@ alwaysApply: false
   - `layouts/`: 레이아웃 컴포넌트
   - `utils/`: 유틸리티 함수
 
-## 아키텍처 패턴
+## Electron 기본 구조
 
-1. **Electron 멀티 프로세스 구조**
-   - 메인 프로세스: Node.js 환경으로 OS 수준 작업 처리
-   - 렌더러 프로세스: 웹 기술(HTML, CSS, JS)로 UI 렌더링
+1. **프로세스 구분**
+   - 메인 프로세스: [main.ts](mdc:src/main.ts) - Node.js 환경으로 OS 수준 작업 처리
+   - 프리로드 스크립트: [preload.ts](mdc:src/preload.ts) - 안전한 IPC 브릿지 제공
+   - 렌더러 프로세스: [app.tsx](mdc:src/app.tsx) 및 UI 컴포넌트 - 웹 기술(HTML, CSS, JS)로 UI 렌더링
 
-2. **IPC 통신 패턴**
-   - 메인 프로세스와 렌더러 프로세스 간 통신
-   - `ipcMain` 및 `ipcRenderer`를 통한 요청-응답 패턴
-   - 데이터베이스 작업은 메인 프로세스에서 처리
+2. **보안 모델**
+   - `contextIsolation: true` 설정으로 렌더러와 Node.js 환경 분리
+   - `nodeIntegration: false` 설정으로 렌더러에서 직접 Node API 접근 차단
+   - 프리로드 스크립트를 통해 안전한 IPC 통신 인터페이스 제공
 
-3. **데이터 관리**
-   - SQLite 데이터베이스 사용 (better-sqlite3 라이브러리)
+## IPC 통신 패턴
+
+1. **API 설계**
+   - 각 도메인별로 API 구분 (nurse:*, team:*, shift:*)
+   - 작업 유형별 메서드명 통일 (getAll, getById, create, update, delete)
+
+2. **요청-응답 패턴**
+   - 렌더러에서 `ipcRenderer.invoke()` 사용
+   - 메인 프로세스에서 `ipcMain.handle()` 처리
+   - 응답은 `{ success, data, error }` 형식 사용
+
+3. **오류 처리**
+   - 메인 프로세스에서 예외 발생 시 적절한 오류 응답 반환
+   - 데이터베이스 오류, 비즈니스 로직 오류 등 구분
+
+## 데이터 관리
+
+1. **단방향 데이터 흐름**
+   - 렌더러 → 메인: 요청 (명령 실행, 데이터 조회/수정)
+   - 메인 → 렌더러: 응답 (명령 결과, 데이터, 오류)
+
+2. **데이터베이스 작업**
+   - 데이터베이스 접근은 항상 메인 프로세스에서만 수행
+   - SQLite 데이터베이스 사용 (better-sqlite3)
+   - [database.ts](mdc:src/database.ts)에서 모든 DB 작업 집중 관리
    - 비즈니스 로직은 메인 프로세스에서 처리
    - 각 도메인(간호사, 팀, 시프트)별 CRUD 작업 분리
 
-4. **UI 구조**
+## UI 구조
+
+1. **컴포넌트 기반 아키텍처**
    - React 기반 컴포넌트 구조
    - 페이지 중심 라우팅
    - 재사용 가능한 컴포넌트 활용
 
 ## 빌드 및 배포 시스템
 
-- Vite: 개발 서버 및 빌드 도구
-- Electron Forge: 애플리케이션 패키징 및 배포 도구
-- TypeScript: 타입 안전성 확보
+1. **개발 도구**
+   - Vite: 개발 서버 및 빌드 도구
+   - TypeScript: 타입 안전성 확보
+
+2. **환경 설정**
+   - 개발/프로덕션 환경 별 설정 분리
+   - MAIN_WINDOW_VITE_DEV_SERVER_URL 변수로 개발/프로덕션 모드 구분
+
+3. **패키징**
+   - Electron Forge 사용
+   - [forge.config.ts](mdc:forge.config.ts)에서 배포 설정 관리
+   - 플랫폼별 빌드 설정 (Windows, macOS, Linux)
