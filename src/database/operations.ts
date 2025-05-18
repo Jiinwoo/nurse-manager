@@ -201,6 +201,24 @@ export class ShiftOperations extends BaseOperations {
     const result = stmt.run(id);
     return result.changes > 0;
   }
+
+  getNurseWithTeam(nurseId: number): Nurse | null {
+    const stmt = this.db.prepare(`
+      SELECT n.*, t.name as team_name 
+      FROM nurses n 
+      LEFT JOIN teams t ON n.team_id = t.id 
+      WHERE n.id = ?
+    `);
+    const nurse = stmt.get(nurseId) as any;
+    
+    if (nurse) {
+      return {
+        ...nurse,
+        available_shift_types: JSON.parse(nurse.available_shift_types || '["day","evening","night"]')
+      };
+    }
+    return null;
+  }
 }
 
 export class TeamOperations extends BaseOperations {

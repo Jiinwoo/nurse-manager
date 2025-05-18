@@ -32,7 +32,9 @@ let db: any = null;
 const initializeDatabase = async () => {
   try {
     const Database = await loadBetterSqlite();
-    db = new Database(dbPath, { verbose: console.log });
+    db = new Database(dbPath, 
+      // { verbose: console.log }
+    );
     console.log('SQLite 데이터베이스 연결 성공:', dbPath);
     
     // Create shifts table if it doesn't exist

@@ -516,7 +516,7 @@ const ShiftManagement: React.FC = () => {
                 <table className="table table-sm table-bordered">
                   <thead>
                     <tr>
-                      <th>간호사</th>
+                      <th style={{ minWidth: '100px', whiteSpace: 'nowrap' }}>간호사</th>
                       {Array.from({ length: 5 }).map((_, i) => {
                         const [year, month] = targetMonth.split('-').map(Number);
                         const prevMonth = month === 1 ? 12 : month - 1;
@@ -524,7 +524,7 @@ const ShiftManagement: React.FC = () => {
                         const lastDay = new Date(prevYear, prevMonth, 0).getDate();
                         const date = new Date(prevYear, prevMonth - 1, lastDay - 4 + i);
                         return (
-                          <th key={i} className="text-center">
+                          <th key={i} className="text-center" style={{ minWidth: '50px', whiteSpace: 'nowrap' }}>
                             {date.getDate()}일
                             <br />
                             <small>
@@ -538,7 +538,7 @@ const ShiftManagement: React.FC = () => {
                   <tbody>
                     {nurses.map(nurse => (
                       <tr key={nurse.id}>
-                        <td>{nurse.name}</td>
+                        <td style={{ whiteSpace: 'nowrap' }}>{nurse.name}</td>
                         {Array.from({ length: 5 }).map((_, i) => {
                           const [year, month] = targetMonth.split('-').map(Number);
                           const prevMonth = month === 1 ? 12 : month - 1;
@@ -548,7 +548,7 @@ const ShiftManagement: React.FC = () => {
                           const shift = manualPreviousShifts.find(s => s.nurse_id === nurse.id && s.shift_date === date);
 
                           return (
-                            <td key={i} className="text-center">
+                            <td key={i} className="text-center" style={{ minWidth: '50px', whiteSpace: 'nowrap' }}>
                               <select
                                 className="form-select form-select-sm"
                                 value={shift?.shift_type || ''}
@@ -582,8 +582,8 @@ const ShiftManagement: React.FC = () => {
                 <li>해당 달의 오프 수 - 해당 달의 휴일 갯수는 연차에서 차감됨</li>
                 <li>오프 수는 최대 9개를 초과할 수 없음</li>
                 <li>Day, Evening은 한 타임에 4명씩 근무하며 Night는 3명씩 근무</li>
-                <li>근무 타임에 5년차 이상 간호사 한명 포함되어야 함</li>
-                <li>4명씩 근무할 때는 각팀에서 무조건 한명씩 차출되고 팀에 속하지 않는 간호사 1명</li>
+                <li>모든 근무 타임에는 4년차 이상 간호사 한명이상 무조건 포함되어야 함</li>
+                <li>근무 인원을 뽑을 때는 최대한 모든 팀에서 고르게 뽑음</li>
                 <li>3명씩 근무할 때는 같은 팀에서 최대 2명까지만 같이 근무 가능</li>
                 <li>희망 근로를 최대한 반영</li>
               </ul>
@@ -622,9 +622,9 @@ const ShiftManagement: React.FC = () => {
               <table className="table table-sm table-bordered">
                 <thead>
                   <tr>
-                    <th className="bg-light">간호사 정보</th>
+                    <th className="bg-light" style={{ minWidth: '150px', whiteSpace: 'nowrap' }}>간호사 정보</th>
                     {formatScheduleData().map(({ date }) => (
-                      <th key={date} className="text-center">
+                      <th key={date} className="text-center" style={{ minWidth: '50px', whiteSpace: 'nowrap' }}>
                         {new Date(date).getDate()}일
                         <br />
                         <small>
@@ -637,7 +637,7 @@ const ShiftManagement: React.FC = () => {
                 <tbody>
                   {nurses.map(nurse => (
                     <tr key={nurse.id}>
-                      <td className="bg-light">
+                      <td className="bg-light" style={{ whiteSpace: 'nowrap' }}>
                         <strong>{nurse.name}</strong>
                         <br />
                         <small>팀: {nurse.team_name || '없음'}</small>
@@ -657,7 +657,7 @@ const ShiftManagement: React.FC = () => {
                         const preferenceMatch = preference && nurseShift && preference === nurseShift.shift_type;
 
                         return (
-                          <td key={date} className={`text-center ${shiftTypeClass}`}>
+                          <td key={date} className={`text-center ${shiftTypeClass}`} style={{ minWidth: '50px', whiteSpace: 'nowrap' }}>
                             {nurseShift ? displayPreferenceType(nurseShift.shift_type) : '-'}
                             {preferenceMatch && <small className="d-block">✓</small>}
                           </td>
@@ -714,8 +714,8 @@ const ShiftManagement: React.FC = () => {
                 <table className="table table-sm table-bordered">
                   <thead>
                     <tr>
-                      <th>간호사</th>
-                      <th>희망 근무</th>
+                      <th style={{ minWidth: '120px', whiteSpace: 'nowrap' }}>간호사</th>
+                      <th style={{ minWidth: '100px', whiteSpace: 'nowrap' }}>희망 근무</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -723,8 +723,8 @@ const ShiftManagement: React.FC = () => {
                       const preference = getNursePreference(nurse.id!, selectedDate);
                       return (
                         <tr key={nurse.id}>
-                          <td>{nurse.name}</td>
-                          <td>
+                          <td style={{ whiteSpace: 'nowrap' }}>{nurse.name}</td>
+                          <td style={{ whiteSpace: 'nowrap' }}>
                             {preference ? (
                               <span className={`badge ${getPreferenceBadgeClass(preference)}`}>
                                 {displayPreferenceType(preference)}
@@ -758,11 +758,11 @@ const ShiftManagement: React.FC = () => {
                   <table className="table table-striped">
                     <thead>
                       <tr>
-                        <th>간호사</th>
-                        <th>근무 유형</th>
-                        {showPreferences && <th>희망 근무</th>}
-                        <th>상태</th>
-                        <th>메모</th>
+                        <th style={{ minWidth: '120px', whiteSpace: 'nowrap' }}>간호사</th>
+                        <th style={{ minWidth: '80px', whiteSpace: 'nowrap' }}>근무 유형</th>
+                        {showPreferences && <th style={{ minWidth: '100px', whiteSpace: 'nowrap' }}>희망 근무</th>}
+                        <th style={{ minWidth: '80px', whiteSpace: 'nowrap' }}>상태</th>
+                        <th style={{ minWidth: '150px', whiteSpace: 'nowrap' }}>메모</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -770,10 +770,10 @@ const ShiftManagement: React.FC = () => {
                         const preference = getNursePreference(shift.nurse_id, date);
                         return (
                           <tr key={shift.id}>
-                            <td>{shift.nurse_name}</td>
-                            <td>{shift.shift_type}</td>
+                            <td style={{ whiteSpace: 'nowrap' }}>{shift.nurse_name}</td>
+                            <td style={{ whiteSpace: 'nowrap' }}>{shift.shift_type}</td>
                             {showPreferences && (
-                              <td>
+                              <td style={{ whiteSpace: 'nowrap' }}>
                                 {preference ? (
                                   <span className={`badge ${getPreferenceBadgeClass(preference)}`}>
                                     {displayPreferenceType(preference)}
@@ -783,7 +783,7 @@ const ShiftManagement: React.FC = () => {
                                 )}
                               </td>
                             )}
-                            <td>
+                            <td style={{ whiteSpace: 'nowrap' }}>
                               <span className={`badge bg-${shift.status === 'completed' ? 'success' :
                                   shift.status === 'cancelled' ? 'danger' :
                                     'primary'
@@ -794,7 +794,7 @@ const ShiftManagement: React.FC = () => {
                                 }
                               </span>
                             </td>
-                            <td>{shift.notes || '-'}</td>
+                            <td style={{ whiteSpace: 'nowrap' }}>{shift.notes || '-'}</td>
                           </tr>
                         );
                       })}
