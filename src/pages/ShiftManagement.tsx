@@ -393,10 +393,10 @@ const ShiftManagement: React.FC = () => {
           maxOffDaysPerMonth: 9,
           teamDistribution: true
         },
-        maxSolutions: 10  // 최대 20개 해답
+        maxSolutions: 100000  // 최대 20개 해답
       });
-      // console.log(response);
-      // return 
+      console.log(response);
+      return 
 
       if (response.success) {
         setNightShiftSolutions(response.data || []);

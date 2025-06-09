@@ -31,7 +31,7 @@ export class ScheduleGenerator {
   private shiftOperations: ShiftOperations;
   private nightPatterns: NightShiftPattern[] = [
     { workDays: 2, offDays: 2 },
-    { workDays: 3, offDays: 2 }
+    // { workDays: 3, offDays: 2 }
   ];
   private searchProgress: SearchProgress | null = null;
   private uniqueSolutionKeys: Set<string> = new Set(); // 🎯 중복 해답 방지를 위한 키 저장
@@ -266,17 +266,10 @@ export class ScheduleGenerator {
 
     // 각 패턴을 적용하는 경우들
     for (const pattern of this.nightPatterns) {
-      const bestNurses = this.selectBestNurses(availableNurses, rules.nightNurseCount);
-      
-      if (bestNurses) {
-        const canApply = this.canApplyPattern(bestNurses, dateIndex, pattern, dates.length, nurseSchedule, rules);
-        
-        // 🔍 디버깅 로그 추가
-        if (dateIndex < 5) {
-          const nurseInfo = bestNurses.map(n => `${n.nurseId}(${n.currentNightShifts}일)`).join(', ');
-          const totalNights = bestNurses.reduce((sum, n) => sum + n.currentNightShifts, 0);
-          console.log(`     ✅ 선택된 간호사 [${nurseInfo}] 총${totalNights}일: ${canApply ? '적용가능' : '적용불가'}`);
-        }
+      const combinations = this.generateNurseCombinations(availableNurses, rules.nightNurseCount);
+    
+      for (const combination of combinations) {
+        const canApply = this.canApplyPattern(combination, dateIndex, pattern, dates.length, nurseSchedule, rules);
         
         if (canApply) {
           
@@ -287,12 +280,12 @@ export class ScheduleGenerator {
           const backupPatterns = [...currentPatterns];
 
           // 패턴 적용
-          const newShifts = this.applyNightPattern(bestNurses, dateIndex, pattern, dates, nurseSchedule, nurseStats);
+          const newShifts = this.applyNightPattern(combination, dateIndex, pattern, dates, nurseSchedule, nurseStats);
           currentShifts.push(...newShifts);
           currentPatterns.push({
             pattern,
             startDate: currentDate,
-            nurses: bestNurses.map(n => n.nurseId)
+            nurses: combination.map(n => n.nurseId)
           });
           
           // 다음 가능한 날짜로 이동 (패턴의 전체 길이만큼 건너뛰기)
@@ -344,36 +337,100 @@ export class ScheduleGenerator {
   }
 
   /**
-   * 가장 적게 일한 간호사들을 선택하는 메서드
+   * 간호사 조합 생성 - 나이트 근무 수가 적은 간호사 우선 선택
    */
-  private selectBestNurses(
+  private generateNurseCombinations(
     availableNurses: NurseNightStats[],
     requiredCount: number
-  ): NurseNightStats[] | null {
+  ): NurseNightStats[][] {
     // 🚨 조건 검사
     if (availableNurses.length < requiredCount) {
       console.warn(`⚠️ 가용 간호사(${availableNurses.length}명) < 필요 인원(${requiredCount}명)`);
-      return null;
+      return [];
     }
 
-    // 🎯 나이트 근무 수가 적은 순으로 정렬 (이미 정렬되어 있지만 안전하게 한번 더)
-    const sortedNurses = availableNurses.sort((a, b) => {
-      // 1차: 현재 나이트 근무 수로 정렬
-      if (a.currentNightShifts !== b.currentNightShifts) {
-        return a.currentNightShifts - b.currentNightShifts;
-      }
-      
-      // 2차: 목표 대비 부족분이 많은 간호사 우선
-      const deficitA = a.targetNightShifts - a.currentNightShifts;
-      const deficitB = b.targetNightShifts - b.currentNightShifts;
-      return deficitB - deficitA;
-    });
+    // 🎯 간단한 접근: 가장 적게 일한 간호사들부터 선택
+    if (requiredCount === 1) {
+      // 1명만 필요한 경우 - 각각 배열로 감싸서 반환
+      return availableNurses.slice(0, Math.min(5, availableNurses.length)).map(nurse => [nurse]);
+    }
 
-    // 🎯 가장 적게 일한 간호사들을 선택
-    return sortedNurses.slice(0, requiredCount);
+    if (requiredCount === 2) {
+      // 2명 조합 생성
+      const combinations: NurseNightStats[][] = [];
+      for (let i = 0; i < availableNurses.length - 1; i++) {
+        for (let j = i + 1; j < availableNurses.length; j++) {
+          combinations.push([availableNurses[i], availableNurses[j]]);
+        }
+      }
+      return this.sortCombinationsByNightShifts(combinations).slice(0, 10); // 상위 10개만
+    }
+
+    if (requiredCount === 3) {
+      // 3명 조합 생성
+      const combinations: NurseNightStats[][] = [];
+      for (let i = 0; i < availableNurses.length - 2; i++) {
+        for (let j = i + 1; j < availableNurses.length - 1; j++) {
+          for (let k = j + 1; k < availableNurses.length; k++) {
+            combinations.push([availableNurses[i], availableNurses[j], availableNurses[k]]);
+          }
+        }
+      }
+      return this.sortCombinationsByNightShifts(combinations).slice(0, 15); // 상위 15개만
+    }
+
+    // 4명 이상인 경우 - 일반적인 조합 생성 (제한적)
+    return this.generateCombinationsRecursive(availableNurses, requiredCount, 20);
   }
 
+  /**
+   * 조합을 나이트 근무 수 순으로 정렬
+   */
+  private sortCombinationsByNightShifts(combinations: NurseNightStats[][]): NurseNightStats[][] {
+    return combinations.sort((a, b) => {
+      const sumA = a.reduce((sum, nurse) => sum + nurse.currentNightShifts, 0);
+      const sumB = b.reduce((sum, nurse) => sum + nurse.currentNightShifts, 0);
+      
+      // 1차: 총 나이트 근무 수로 정렬
+      if (sumA !== sumB) {
+        return sumA - sumB;
+      }
+      
+      // 2차: 최대 나이트 근무 수로 정렬 (더 균등한 분배 우선)
+      const maxA = Math.max(...a.map(n => n.currentNightShifts));
+      const maxB = Math.max(...b.map(n => n.currentNightShifts));
+      return maxA - maxB;
+    });
+  }
 
+  /**
+   * 일반적인 조합 생성 (재귀) - 제한된 개수만 생성
+   */
+  private generateCombinationsRecursive(
+    nurses: NurseNightStats[],
+    count: number,
+    maxCombinations: number
+  ): NurseNightStats[][] {
+    const combinations: NurseNightStats[][] = [];
+    
+    const generate = (start: number, current: NurseNightStats[]) => {
+      if (combinations.length >= maxCombinations) return; // 제한 도달
+      
+      if (current.length === count) {
+        combinations.push([...current]);
+        return;
+      }
+
+      for (let i = start; i < nurses.length && combinations.length < maxCombinations; i++) {
+        current.push(nurses[i]);
+        generate(i + 1, current);
+        current.pop();
+      }
+    };
+
+    generate(0, []);
+    return this.sortCombinationsByNightShifts(combinations);
+  }
 
   /**
    * 특정 패턴을 적용할 수 있는지 확인
