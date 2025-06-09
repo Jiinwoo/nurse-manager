@@ -24,6 +24,10 @@ const ShiftManagement: React.FC = () => {
   }[]>([]);
   const [noPreviousShiftsData, setNoPreviousShiftsData] = useState(false);
   const [csvError, setCsvError] = useState<string | null>(null);
+  const [nightShiftSolutions, setNightShiftSolutions] = useState<any[]>([]);
+  const [showNightShiftSolutions, setShowNightShiftSolutions] = useState(false);
+  const [findingNightShifts, setFindingNightShifts] = useState(false);
+  const [selectedSolution, setSelectedSolution] = useState<any | null>(null);
 
   // Load data on component mount
   useEffect(() => {
@@ -348,6 +352,78 @@ const ShiftManagement: React.FC = () => {
     }
   };
 
+  // 4년차 이상 간호사 나이트 시프트 조합 찾기
+  const findNightShiftCombinations = async () => {
+    if (!targetMonth) {
+      setError('대상 월을 선택해주세요.');
+      return;
+    }
+
+    setFindingNightShifts(true);
+    setError(null);
+    setNightShiftSolutions([]);
+
+    try {
+      const [year, month] = targetMonth.split('-').map(Number);
+      
+      // 4년차 이상 간호사 필터링
+      const seniorNurses = nurses.filter(nurse => 
+        nurse.years_experience >= 4 && 
+        nurse.available_shift_types.includes('Night')
+      );
+
+      if (seniorNurses.length === 0) {
+        setError('4년차 이상 나이트 근무 가능한 간호사가 없습니다.');
+        return;
+      }
+
+      const response = await window.api.shifts.findAllSeniorNurseNightShiftCombinations({
+        year,
+        month: month - 1,
+        seniorNurses,
+        existingShifts: [],
+        rules: {
+          maxConsecutiveWorkDays: 5,
+          maxConsecutiveNightShifts: 3,
+          minOffsAfterNights: 2,
+          maxNightShiftsPerMonth: 8,
+          dayEveningNurseCount: 4,
+          nightNurseCount: 1,
+          requireSeniorNurseAtNight: true,
+          maxOffDaysPerMonth: 9,
+          teamDistribution: true
+        },
+        maxSolutions: 10  // 최대 20개 해답
+      });
+      // console.log(response);
+      // return 
+
+      if (response.success) {
+        setNightShiftSolutions(response.data || []);
+        setShowNightShiftSolutions(true);
+        if (response.data && response.data.length > 0) {
+          alert(`총 ${response.data.length}개의 나이트 시프트 조합을 찾았습니다!`);
+        } else {
+          alert('조건에 맞는 나이트 시프트 조합을 찾을 수 없습니다.');
+        }
+      } else {
+        setError(response.error || '나이트 시프트 조합 찾기 중 오류가 발생했습니다.');
+      }
+    } catch (err) {
+      setError('나이트 시프트 조합 찾기 중 예외가 발생했습니다.');
+      console.error(err);
+    } finally {
+      setFindingNightShifts(false);
+    }
+  };
+
+  // 선택된 해답 적용
+  const applySolution = (solution: any) => {
+    setSelectedSolution(solution);
+    setGeneratedSchedule(solution.shifts);
+    setShowNightShiftSolutions(false);
+  };
+
   // CSV 파일 처리
   const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -443,13 +519,22 @@ const ShiftManagement: React.FC = () => {
               />
             </div>
             <div className="col-md-4">
-              <button
-                className="btn btn-primary"
-                onClick={generateSchedule}
-                disabled={!targetMonth || generatingSchedule}
-              >
-                {generatingSchedule ? '생성 중...' : '근무표 생성'}
-              </button>
+              <div className="d-flex gap-2">
+                <button
+                  className="btn btn-primary"
+                  onClick={generateSchedule}
+                  disabled={!targetMonth || generatingSchedule}
+                >
+                  {generatingSchedule ? '생성 중...' : '근무표 생성'}
+                </button>
+                <button
+                  className="btn btn-info"
+                  onClick={findNightShiftCombinations}
+                  disabled={!targetMonth || findingNightShifts}
+                >
+                  {findingNightShifts ? '탐색 중...' : '나이트 조합 찾기'}
+                </button>
+              </div>
             </div>
             <div className="col-md-4">
               <button
@@ -604,11 +689,87 @@ const ShiftManagement: React.FC = () => {
         </div>
       )}
 
+      {/* 나이트 시프트 조합 결과 */}
+      {showNightShiftSolutions && nightShiftSolutions.length > 0 && (
+        <div className="card mb-4">
+          <div className="card-header d-flex justify-content-between align-items-center">
+            <h5 className="mb-0">4년차 이상 간호사 나이트 시프트 조합 ({nightShiftSolutions.length}개)</h5>
+            <button
+              className="btn btn-outline-secondary btn-sm"
+              onClick={() => setShowNightShiftSolutions(false)}
+            >
+              닫기
+            </button>
+          </div>
+          <div className="card-body">
+            <div className="alert alert-info">
+              <strong>조합 설명:</strong> 각 조합은 4년차 이상 간호사들의 나이트 근무 스케줄입니다. 
+              2일 근무 + 2일 오프, 3일 근무 + 2일 오프 패턴을 고려하여 생성되었습니다.
+            </div>
+            <div className="row">
+              {nightShiftSolutions.map((solution, index) => (
+                <div key={index} className="col-md-6 col-lg-4 mb-3">
+                  <div className="card h-100">
+                    <div className="card-header d-flex justify-content-between align-items-center">
+                      <h6 className="mb-0">조합 #{index + 1}</h6>
+                      <button
+                        className="btn btn-success btn-sm"
+                        onClick={() => applySolution(solution)}
+                      >
+                        적용
+                      </button>
+                    </div>
+                    <div className="card-body">
+                      <div className="mb-2">
+                        <strong>총 시프트:</strong> {solution.shifts.length}개
+                      </div>
+                      <div className="mb-2">
+                        <strong>사용된 패턴:</strong> {solution.patternUsage.length}개
+                      </div>
+                      <div className="mb-3">
+                        <strong>간호사별 근무 수:</strong>
+                        <ul className="list-unstyled mt-1">
+                          {solution.nurseStats.map((stat: any) => {
+                            const nurse = nurses.find(n => n.id === stat.nurseId);
+                            return (
+                              <li key={stat.nurseId} className="small">
+                                {nurse?.name}: {stat.currentNightShifts}/{stat.targetNightShifts}일
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                      <div className="mb-2">
+                        <strong>패턴 상세:</strong>
+                        <ul className="list-unstyled mt-1">
+                          {solution.patternUsage.map((pattern: any, pIndex: number) => (
+                            <li key={pIndex} className="small">
+                              {new Date(pattern.startDate).getDate()}일: {pattern.pattern.workDays}일 근무 + {pattern.pattern.offDays}일 오프
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 생성된 듀티 표 미리보기 섹션 */}
       {generatedSchedule.length > 0 && (
         <div className="card mb-4">
           <div className="card-header d-flex justify-content-between align-items-center">
-            <h5 className="mb-0">생성된 근무표 미리보기</h5>
+            <div>
+              <h5 className="mb-0">생성된 근무표 미리보기</h5>
+              {selectedSolution && (
+                <small className="text-muted">
+                  선택된 조합: 총 {selectedSolution.shifts.length}개 시프트, {selectedSolution.patternUsage.length}개 패턴 사용
+                </small>
+              )}
+            </div>
             <button
               className="btn btn-success"
               onClick={saveGeneratedSchedule}

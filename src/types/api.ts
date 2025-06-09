@@ -27,6 +27,14 @@ export interface ShiftApi {
     rules: ShiftGenerationRules;
   }) => Promise<ApiResponse<Shift[]>>;
   saveGeneratedSchedule: (shifts: Shift[]) => Promise<ApiResponse<any>>;
+  findAllSeniorNurseNightShiftCombinations: (params: {
+    year: number;
+    month: number;
+    seniorNurses: Nurse[];
+    existingShifts: Shift[];
+    rules: ShiftGenerationRules;
+    maxSolutions?: number;
+  }) => Promise<ApiResponse<any[]>>;
 }
 
 export interface TeamApi {

@@ -107,4 +107,22 @@ export function setupShiftHandlers(shiftOperations: ShiftOperations) {
       return { success: false, error: error.message };
     }
   });
+
+  ipcMain.handle('shift:findAllSeniorNurseNightShiftCombinations', async (_, params: {
+    year: number;
+    month: number;
+    seniorNurses: any[];
+    existingShifts: Shift[];
+    rules: ShiftGenerationRules;
+    maxSolutions?: number;
+  }): Promise<ApiResponse<any[]>> => {
+    try {
+      const solutions = await scheduleGenerator.findAllSeniorNurseNightShiftCombinations(params);
+      const sortedSolutions = scheduleGenerator.sortSolutionsByScore(solutions);
+      return { success: true, data: sortedSolutions };
+    } catch (error) {
+      console.error('Error finding senior nurse night shift combinations:', error);
+      return { success: false, error: error.message };
+    }
+  });
 } 
