@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 
 import { validateSchedule, summarizeValidation } from '../utils/scheduleValidation';
 import { Nurse, Shift, Team, ShiftPreference, ShiftGenerationRules } from '../types';
+import { BackgroundScheduleGenerator } from '../components/BackgroundScheduleGenerator';
 
 const ShiftManagement: React.FC = () => {
   const [shifts, setShifts] = useState<Shift[]>([]);
@@ -28,6 +29,7 @@ const ShiftManagement: React.FC = () => {
   const [showNightShiftSolutions, setShowNightShiftSolutions] = useState(false);
   const [findingNightShifts, setFindingNightShifts] = useState(false);
   const [selectedSolution, setSelectedSolution] = useState<any | null>(null);
+  const [showBackgroundGenerator, setShowBackgroundGenerator] = useState(false);
 
   // Load data on component mount
   useEffect(() => {
@@ -395,8 +397,8 @@ const ShiftManagement: React.FC = () => {
         },
         maxSolutions: 100000  // 최대 20개 해답
       });
-      console.log(response);
-      return 
+      // console.log(response);
+      // return 
 
       if (response.success) {
         setNightShiftSolutions(response.data || []);
@@ -533,6 +535,13 @@ const ShiftManagement: React.FC = () => {
                   disabled={!targetMonth || findingNightShifts}
                 >
                   {findingNightShifts ? '탐색 중...' : '나이트 조합 찾기'}
+                </button>
+                <button
+                  className="btn btn-success"
+                  onClick={() => setShowBackgroundGenerator(!showBackgroundGenerator)}
+                  disabled={!targetMonth}
+                >
+                  {showBackgroundGenerator ? '백그라운드 생성 숨기기' : '백그라운드 생성 보기'}
                 </button>
               </div>
             </div>
@@ -676,6 +685,44 @@ const ShiftManagement: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* 백그라운드 스케줄 생성 */}
+      {showBackgroundGenerator && targetMonth && (
+        <div className="mb-4">
+          <BackgroundScheduleGenerator
+            params={{
+              year: parseInt(targetMonth.split('-')[0]),
+              month: parseInt(targetMonth.split('-')[1]) - 1,
+              seniorNurses: nurses.filter(nurse => 
+                nurse.years_experience >= 4 && 
+                nurse.available_shift_types.includes('Night')
+              ),
+              existingShifts: [],
+              rules: {
+                maxConsecutiveWorkDays: 5,
+                maxConsecutiveNightShifts: 3,
+                minOffsAfterNights: 2,
+                maxNightShiftsPerMonth: 8,
+                dayEveningNurseCount: 4,
+                nightNurseCount: 1,
+                requireSeniorNurseAtNight: true,
+                maxOffDaysPerMonth: 9,
+                teamDistribution: true
+              },
+              maxSolutions: 10000000
+            }}
+            onComplete={(solutions) => {
+              setNightShiftSolutions(solutions);
+              setShowNightShiftSolutions(true);
+              alert(`총 ${solutions.length}개의 나이트 시프트 조합을 찾았습니다!`);
+            }}
+            onError={(error) => {
+              setError(error);
+            }}
+            isVisible={true}
+          />
+        </div>
+      )}
 
       {/* 검증 결과 표시 */}
       {validationSummary && (

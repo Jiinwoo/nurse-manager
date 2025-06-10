@@ -31,9 +31,9 @@ export class ScheduleGenerator {
   private shiftOperations: ShiftOperations;
   private nightPatterns: NightShiftPattern[] = [
     { workDays: 2, offDays: 2 },
-    // { workDays: 3, offDays: 2 }
+    { workDays: 3, offDays: 2 }
   ];
-  private searchProgress: SearchProgress | null = null;
+  protected searchProgress: SearchProgress | null = null;
   private uniqueSolutionKeys: Set<string> = new Set(); // 🎯 중복 해답 방지를 위한 키 저장
 
   constructor(shiftOperations: ShiftOperations) {
@@ -73,9 +73,9 @@ export class ScheduleGenerator {
     );
     console.log(monthDates);
 
-    // 4년차 이상 간호사 필터링
+    // 5년차 이상 간호사 필터링
     const eligibleSeniorNurses = seniorNurses.filter(nurse => 
-      nurse.years_experience >= 4 && 
+      nurse.years_experience >= 5 && 
       nurse.available_shift_types.includes('Night')
     );
 
@@ -167,7 +167,7 @@ export class ScheduleGenerator {
     });
 
     // 모든 가능한 조합 탐색
-    this.findAllCombinationsRecursive(
+    await this.findAllCombinationsRecursive(
       0, // 현재 날짜 인덱스
       dates,
       this.deepCopyNurseStats(nurseStats),
@@ -193,9 +193,9 @@ export class ScheduleGenerator {
   }
 
   /**
-   * 모든 조합을 찾는 재귀 함수
+   * 모든 조합을 찾는 재귀 함수 - UI 블로킹 방지를 위해 비동기 처리
    */
-  private findAllCombinationsRecursive(
+  protected async findAllCombinationsRecursive(
     dateIndex: number,
     dates: string[],
     nurseStats: NurseNightStats[],
@@ -205,11 +205,15 @@ export class ScheduleGenerator {
     rules: ShiftGenerationRules,
     allSolutions: ScheduleSolution[],
     maxSolutions: number
-  ): void {
+  ): Promise<void> {
     // 진행상황 업데이트
     if (this.searchProgress) {
       this.searchProgress.totalExplored++;
       this.searchProgress.currentDepth = dateIndex;
+      
+      if (this.searchProgress.totalExplored % 500 === 0) {
+        await new Promise(resolve => setTimeout(resolve, 1));
+      }
       
       // 1000번마다 또는 5초마다 진행상황 출력
       const now = Date.now();
@@ -266,8 +270,8 @@ export class ScheduleGenerator {
 
     // 각 패턴을 적용하는 경우들
     for (const pattern of this.nightPatterns) {
-      const combinations = this.generateNurseCombinations(availableNurses, rules.nightNurseCount);
-    
+      const combinations = availableNurses.map(nurse => [nurse]);
+      
       for (const combination of combinations) {
         const canApply = this.canApplyPattern(combination, dateIndex, pattern, dates.length, nurseSchedule, rules);
         
@@ -291,7 +295,7 @@ export class ScheduleGenerator {
           // 다음 가능한 날짜로 이동 (패턴의 전체 길이만큼 건너뛰기)
           const nextDateIndex = dateIndex + pattern.workDays + pattern.offDays;
           
-          this.findAllCombinationsRecursive(
+          await this.findAllCombinationsRecursive(
             Math.min(nextDateIndex, dates.length), // 월말 초과 방지
             dates,
             nurseStats,
@@ -468,7 +472,7 @@ export class ScheduleGenerator {
       }
 
       // 목표 근무 수 초과 체크
-      // if (nurse.currentNightShifts + pattern.workDays > nurse.targetNightShifts) return false;
+      if (nurse.currentNightShifts + pattern.workDays > nurse.targetNightShifts) return false;
     }
 
     return true;
@@ -626,9 +630,9 @@ export class ScheduleGenerator {
   }
 
   /**
-   * 탐색 진행상황 로그 출력
+   * 탐색 진행상황 로그 출력 - 하위 클래스에서 오버라이드 가능
    */
-  private logProgress(dates: string[], solutionsFound: number): void {
+  protected logProgress(dates: string[], solutionsFound: number): void {
     if (!this.searchProgress) return;
     
     const elapsedTime = Date.now() - this.searchProgress.startTime;
@@ -649,9 +653,9 @@ export class ScheduleGenerator {
   }
 
   /**
-   * 발견된 해답의 상세 정보 로그 출력
+   * 발견된 해답의 상세 정보 로그 출력 - 하위 클래스에서 오버라이드 가능
    */
-  private logSolutionDetails(solution: ScheduleSolution, originalNurseStats: NurseNightStats[]): void {
+  protected logSolutionDetails(solution: ScheduleSolution, originalNurseStats: NurseNightStats[]): void {
     console.log(`📋 해답 상세 정보:`);
     console.log(`   📦 총 시프트: ${solution.shifts.length}개`);
     console.log(`   🔄 패턴 사용: ${solution.patternUsage.length}개`);

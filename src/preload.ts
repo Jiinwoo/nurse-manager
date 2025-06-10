@@ -30,6 +30,18 @@ contextBridge.exposeInMainWorld('api', {
     generateMonthlySchedule: (params: any) => ipcRenderer.invoke('shift:generateMonthlySchedule', params),
     saveGeneratedSchedule: (shifts: any) => ipcRenderer.invoke('shift:saveGeneratedSchedule', shifts),
     findAllSeniorNurseNightShiftCombinations: (params: any) => ipcRenderer.invoke('shift:findAllSeniorNurseNightShiftCombinations', params),
+    
+    // 백그라운드 스케줄 생성
+    startBackgroundScheduleGeneration: (params: any) => ipcRenderer.invoke('shift:startBackgroundScheduleGeneration', params),
+    cancelBackgroundScheduleGeneration: (taskId: string) => ipcRenderer.invoke('shift:cancelBackgroundScheduleGeneration', taskId),
+    
+    // 이벤트 리스너
+    onScheduleGenerationUpdate: (callback: (event: any, data: any) => void) => {
+      ipcRenderer.on('schedule-generation-update', callback);
+    },
+    removeScheduleGenerationListener: (callback: (event: any, data: any) => void) => {
+      ipcRenderer.removeListener('schedule-generation-update', callback);
+    }
   },
   
   // Team operations
